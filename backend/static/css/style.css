@@ -1,0 +1,266 @@
+/* Custom styles */
+body {
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    background-color: #f8f9fa;
+}
+
+main {
+    flex: 1;
+}
+
+.card {
+    margin-bottom: 20px;
+    transition: transform 0.3s ease-in-out;
+    border: none;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+.card:hover {
+    transform: translateY(-5px);
+}
+
+.navbar {
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.footer {
+    background-color: #f8f9fa;
+    padding: 2rem 0;
+    margin-top: 3rem;
+    border-top: 1px solid #dee2e6;
+}
+
+.footer-content {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 1rem;
+}
+
+.footer-links {
+    display: flex;
+    gap: 1.5rem;
+}
+
+.footer-links a {
+    color: #6c757d;
+    text-decoration: none;
+    transition: color 0.2s;
+}
+
+.footer-links a:hover {
+    color: #0d6efd;
+}
+
+.footer-copyright {
+    color: #6c757d;
+}
+
+/* Brand Generator specific styles */
+.search-container {
+    max-width: 700px;
+    margin: 0 auto;
+}
+
+.input-group {
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    border-radius: 0.5rem;
+    overflow: hidden;
+}
+
+.input-group .form-control {
+    border: none;
+    padding: 1rem 1.5rem;
+}
+
+.input-group .btn {
+    padding-left: 2rem;
+    padding-right: 2rem;
+    border: none;
+}
+
+.btn {
+    transition: all 0.3s ease-in-out;
+}
+
+.btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+/* Results styling */
+.brand-card {
+    background: white;
+    border-radius: 1rem;
+    padding: 1.5rem;
+    margin-bottom: 1rem;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    transition: transform 0.3s ease-in-out;
+}
+
+.brand-card:hover {
+    transform: translateY(-5px);
+}
+
+/* Domain cards styling */
+.domains-container {
+    background: #f8f9fa;
+    border-radius: 0.5rem;
+    padding: 1rem;
+}
+
+.domain-card {
+    background: white;
+    border-radius: 0.5rem;
+    padding: 0.75rem;
+    margin-bottom: 0.5rem;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+}
+
+.domain-card:last-child {
+    margin-bottom: 0;
+}
+
+.domain-name {
+    font-family: monospace;
+    font-size: 1rem;
+    font-weight: 600;
+    color: #495057;
+}
+
+.domain-badge {
+    font-size: 0.8rem;
+    padding: 0.5rem 1rem;
+    border-radius: 2rem;
+    display: inline-block;
+}
+
+.domain-available {
+    background-color: #d4edda;
+    color: #155724;
+}
+
+.domain-unavailable {
+    background-color: #f8d7da;
+    color: #721c24;
+}
+
+/* Loading spinner */
+#loading {
+    padding: 2rem;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+    .brand-card {
+        padding: 1rem;
+    }
+    
+    .domains-container {
+        padding: 0.75rem;
+    }
+    
+    .domain-card {
+        padding: 0.5rem;
+    }
+    
+    .domain-badge {
+        padding: 0.25rem 0.75rem;
+        font-size: 0.75rem;
+    }
+    
+    .footer-content {
+        flex-direction: column;
+        text-align: center;
+    }
+    
+    .footer-links {
+        justify-content: center;
+    }
+}
+
+.toggle-domains {
+    transition: all 0.3s ease;
+    font-size: 0.9rem;
+    padding: 0.375rem 0.75rem;
+}
+
+.toggle-domains:hover {
+    background-color: #e9ecef;
+}
+
+.remaining-domains {
+    transition: all 0.3s ease;
+}
+
+.remaining-domains[style*="display: block"] {
+    animation: fadeIn 0.3s ease;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(-10px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+.favorite-btn {
+    width: 40px;
+    padding: 0.25rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.3s ease;
+}
+
+.favorite-btn:hover {
+    transform: scale(1.1);
+}
+
+.favorite-btn .heart-icon {
+    font-size: 1.2rem;
+    line-height: 1;
+}
+
+.favorite-btn.btn-success {
+    cursor: default;
+}
+
+.favorite-btn.btn-success:hover {
+    transform: none;
+}
+
+/* Toast Notification */
+.toast-notification {
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    background-color: #198754;
+    color: white;
+    padding: 1rem 2rem;
+    border-radius: 4px;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+    z-index: 1000;
+    animation: slideIn 0.3s ease, fadeOut 0.3s ease 2.7s;
+}
+
+@keyframes slideIn {
+    from {
+        transform: translateX(100%);
+        opacity: 0;
+    }
+    to {
+        transform: translateX(0);
+        opacity: 1;
+    }
+}
+
+@keyframes fadeOut {
+    from {
+        opacity: 1;
+    }
+    to {
+        opacity: 0;
+    }
+} 
