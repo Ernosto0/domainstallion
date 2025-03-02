@@ -5,10 +5,11 @@ from fastapi.templating import Jinja2Templates
 from fastapi.security import OAuth2PasswordRequestForm
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
-from typing import List, Optional, Dict
+from typing import List, Optional, Dict, Any
 from datetime import timedelta
 from sqlalchemy.orm import Session
 import os
+import logging
 
 # Enable insecure transport for development
 os.environ["OAUTHLIB_INSECURE_TRANSPORT"] = "1"
@@ -98,6 +99,12 @@ class FavoriteCreate(BaseModel):
     domain_name: str
     domain_extension: str
     price: str
+    total_score: int
+    length_score: int
+    dictionary_score: int
+    pronounceability_score: int
+    repetition_score: int
+    tld_score: int
 
 
 class BrandRequest(BaseModel):
@@ -111,6 +118,9 @@ class DomainInfo(BaseModel):
     domain: str
     available: bool
     price: str
+    score: Dict[
+        str, Any
+    ]  # Add score field to match what we're sending from the backend
 
 
 class BrandResponse(BaseModel):
@@ -170,6 +180,12 @@ async def add_favorite(
         domain_name=favorite.domain_name,
         domain_extension=favorite.domain_extension,
         price=favorite.price,
+        total_score=favorite.total_score,
+        length_score=favorite.length_score,
+        dictionary_score=favorite.dictionary_score,
+        pronounceability_score=favorite.pronounceability_score,
+        repetition_score=favorite.repetition_score,
+        tld_score=favorite.tld_score,
     )
     db.add(db_favorite)
     db.commit()
@@ -177,12 +193,39 @@ async def add_favorite(
     return {"message": "Favorite added successfully"}
 
 
-@app.get("/favorites")
+@app.get("/favorites", response_class=HTMLResponse)
 async def get_favorites(
-    current_user: User = Depends(get_current_user), db: Session = Depends(get_db)
+    request: Request,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
 ):
-    favorites = db.query(Favorite).filter(Favorite.user_id == current_user.id).all()
-    return favorites
+    try:
+        favorites = db.query(Favorite).filter(Favorite.user_id == current_user.id).all()
+        print(f"Found {len(favorites)} favorites for user {current_user.username}")
+
+        # Format the dates for each favorite
+        for favorite in favorites:
+            favorite.formatted_date = (
+                favorite.created_at.strftime("%Y-%m-%d %H:%M:%S")
+                if favorite.created_at
+                else ""
+            )
+            print(
+                f"Favorite: {favorite.domain_name}, Score: {favorite.total_score}, Date: {favorite.formatted_date}"
+            )
+
+        return templates.TemplateResponse(
+            "favorites.html",
+            {
+                "request": request,
+                "favorites": favorites,
+                "current_user": current_user,
+                "title": "My Favorites - Brand Generator",
+            },
+        )
+    except Exception as e:
+        print(f"Error in get_favorites: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 @app.delete("/favorites/{favorite_id}")
@@ -221,6 +264,10 @@ async def generate_names(request: BrandRequest):
 
     if not results:
         raise HTTPException(status_code=500, detail="Failed to generate brand names")
+
+    # Log the response data before returning
+    logger = logging.getLogger(__name__)
+    logger.debug(f"API Response Data: {results}")
 
     return results
 

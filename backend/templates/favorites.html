@@ -1,0 +1,177 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container py-5">
+    <div class="row">
+        <!-- Profile Sidebar -->
+        <div class="col-lg-3">
+            <div class="card mb-4">
+                <div class="card-body text-center">
+                    <img src="https://via.placeholder.com/150" class="rounded-circle mb-3" alt="Profile Picture">
+                    <h5 class="card-title mb-0" id="profileUsername">{{ current_user.username }}</h5>
+                    <p class="text-muted small mb-0" id="profileEmail">{{ current_user.email }}</p>
+                    <div class="mt-3">
+                        <p class="mb-0"><strong>Saved Domains:</strong> <span id="savedDomainsCount">{{ favorites|length }}</span></p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Favorites Content -->
+        <div class="col-lg-9">
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">My Favorite Domains</h5>
+                    <div class="btn-group">
+                        <button class="btn btn-sm btn-outline-secondary" id="sortByName">Sort by Name</button>
+                        <button class="btn btn-sm btn-outline-secondary" id="sortByScore">Sort by Score</button>
+                        <button class="btn btn-sm btn-outline-secondary" id="sortByDate">Sort by Date</button>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <div class="row" id="favoritesList">
+                        {% for favorite in favorites %}
+                        <div class="col-md-6 mb-4" 
+                             data-name="{{ favorite.domain_name }}" 
+                             data-score="{{ favorite.total_score }}" 
+                             data-date="{{ favorite.formatted_date }}">
+                            <div class="domain-card">
+                                <div class="d-flex justify-content-between align-items-center mb-3">
+                                    <h5 class="mb-0">{{ favorite.domain_name }}.{{ favorite.domain_extension }}</h5>
+                                    <span class="badge bg-primary">{{ favorite.price }}</span>
+                                </div>
+                                
+                                <div class="domain-score">
+                                    <div class="score-circle-container d-flex justify-content-center align-items-center mb-3">
+                                        <div class="score-circle" style="--score-value: {{ favorite.total_score }}">
+                                            <div class="score-circle-inner">
+                                                <span class="score-value">{{ favorite.total_score }}</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="score-details">
+                                        <div class="score-item d-flex align-items-center mb-1">
+                                            <div class="score-bar-container flex-grow-1">
+                                                <div class="score-bar" style="width: {{ favorite.length_score }}%"></div>
+                                            </div>
+                                            <small class="ms-2">Length</small>
+                                            <div class="score-tooltip">Domain length score</div>
+                                        </div>
+                                        <div class="score-item d-flex align-items-center mb-1">
+                                            <div class="score-bar-container flex-grow-1">
+                                                <div class="score-bar" style="width: {{ favorite.dictionary_score }}%"></div>
+                                            </div>
+                                            <small class="ms-2">Dictionary</small>
+                                            <div class="score-tooltip">Real word usage score</div>
+                                        </div>
+                                        <div class="score-item d-flex align-items-center mb-1">
+                                            <div class="score-bar-container flex-grow-1">
+                                                <div class="score-bar" style="width: {{ favorite.pronounceability_score }}%"></div>
+                                            </div>
+                                            <small class="ms-2">Pronounceability</small>
+                                            <div class="score-tooltip">How easy it is to pronounce</div>
+                                        </div>
+                                        <div class="score-item d-flex align-items-center mb-1">
+                                            <div class="score-bar-container flex-grow-1">
+                                                <div class="score-bar" style="width: {{ favorite.repetition_score }}%"></div>
+                                            </div>
+                                            <small class="ms-2">Repetition</small>
+                                            <div class="score-tooltip">Letter pattern score</div>
+                                        </div>
+                                        <div class="score-item d-flex align-items-center mb-1">
+                                            <div class="score-bar-container flex-grow-1">
+                                                <div class="score-bar" style="width: {{ favorite.tld_score }}%"></div>
+                                            </div>
+                                            <small class="ms-2">TLD</small>
+                                            <div class="score-tooltip">Domain extension score</div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="mt-3">
+                                    <a href="https://domains.google.com/registrar/search?searchTerm={{ favorite.domain_name }}.{{ favorite.domain_extension }}" 
+                                       target="_blank" 
+                                       class="btn btn-sm btn-outline-primary w-100">Register Domain</a>
+                                </div>
+                                
+                                <button class="btn btn-sm btn-outline-danger w-100 mt-2" 
+                                        onclick='deleteFavorite({{ favorite.id }})'>
+                                    Remove from Favorites
+                                </button>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function getAccessToken() {
+    return localStorage.getItem('authToken');
+}
+
+async function deleteFavorite(id) {
+    if (!confirm('Are you sure you want to remove this domain from favorites?')) {
+        return;
+    }
+    
+    try {
+        const response = await fetch(`/favorites/${id}`, {
+            method: 'DELETE',
+            headers: {
+                'Authorization': `Bearer ${getAccessToken()}`
+            }
+        });
+        
+        if (response.ok) {
+            location.reload();
+        } else {
+            const data = await response.json();
+            alert(data.detail || 'Failed to remove from favorites');
+        }
+    } catch (error) {
+        console.error('Error removing favorite:', error);
+        alert('Failed to remove from favorites');
+    }
+}
+
+// Sorting functionality
+document.addEventListener('DOMContentLoaded', function() {
+    const favoritesList = document.getElementById('favoritesList');
+    const sortByName = document.getElementById('sortByName');
+    const sortByScore = document.getElementById('sortByScore');
+    const sortByDate = document.getElementById('sortByDate');
+
+    function sortCards(attribute, ascending = true) {
+        const cards = Array.from(favoritesList.children);
+        cards.sort((a, b) => {
+            let aVal = a.dataset[attribute];
+            let bVal = b.dataset[attribute];
+            
+            if (attribute === 'score') {
+                aVal = parseInt(aVal);
+                bVal = parseInt(bVal);
+            }
+            
+            if (ascending) {
+                return aVal > bVal ? 1 : -1;
+            } else {
+                return aVal < bVal ? 1 : -1;
+            }
+        });
+        
+        cards.forEach(card => favoritesList.appendChild(card));
+    }
+
+    sortByName.addEventListener('click', () => sortCards('name', true));
+    sortByScore.addEventListener('click', () => sortCards('score', false));
+    sortByDate.addEventListener('click', () => sortCards('date', false));
+});
+</script>
+{% endblock %}

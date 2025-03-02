@@ -8,10 +8,15 @@ import os
 from dotenv import load_dotenv
 import logging
 from concurrent.futures import ThreadPoolExecutor
+from .domain_scorer import DomainScorer
 
 # Configure logging
 logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)
+handler = logging.StreamHandler()
+formatter = logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
+handler.setFormatter(formatter)
+logger.addHandler(handler)
 
 load_dotenv()
 
@@ -43,6 +48,12 @@ client = OpenAI(api_key=api_key)
 
 
 class BrandGenerator:
+    def __init__(self):
+        self.client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+        self.godaddy_api_key = os.getenv("GODADDY_API_KEY")
+        self.godaddy_api_secret = os.getenv("GODADDY_API_SECRET")
+        self.domain_scorer = DomainScorer()
+
     @staticmethod
     async def check_domain_price_async(
         session: aiohttp.ClientSession, domain: str
@@ -62,7 +73,7 @@ class BrandGenerator:
                 "Content-Type": "application/json",
             }
 
-            url = f" https://api.ote-godaddy.com/v1/domains/available?domain={domain}"
+            url = f"https://api.ote-godaddy.com/v1/domains/available?domain={domain}"
             logger.debug(f"Checking domain availability: {domain}")
 
             async with session.get(url, headers=headers) as response:
@@ -135,120 +146,326 @@ class BrandGenerator:
 
             return all_results
 
-    @staticmethod
-    async def generate_names(
-        keywords: str, num_suggestions: int = 20
-    ) -> List[Dict[str, any]]:
-        logger.info(
-            f"Starting name generation for keywords: {keywords}, requesting {num_suggestions} names"
-        )
+    async def check_domain_availability(self, domain):
+        url = f"https://api.ote-godaddy.com/v1/domains/available?domain={domain}"
+        headers = {
+            "Authorization": f"sso-key {self.godaddy_api_key}:{self.godaddy_api_secret}",
+            "accept": "application/json",
+        }
 
-        system_prompt = """You are a brand name generator that creates exactly the requested number of names.
-        You must return ONLY a numbered list of names, one per line, with no additional text or explanations.
-        Format: 1. Name1\n2. Name2\n3. Name3\n..."""
-
-        user_prompt = f"""Generate exactly {num_suggestions} unique brand names based on these keywords: {keywords}
-
-        Requirements for EACH name:
-        - Must be between 3-15 characters
-        - Must work as a domain name (no spaces or special characters)
-        - Must be unique and creative
-        - Must be pronounceable
-        - Must be memorable and brandable
-        - Should be suitable for business use
-        - Avoid numbers unless meaningful
-        - No hyphens or special characters
-
-        Respond with exactly {num_suggestions} names in this format:
-        1. Name1
-        2. Name2
-        3. Name3
-        (continue until {num_suggestions})"""
+        logger.debug(f"Making GoDaddy API request for domain: {domain}")
+        logger.debug(f"Using URL: {url}")
 
         try:
-            logger.debug("Sending request to OpenAI API...")
-            response = client.chat.completions.create(
-                model="gpt-3.5-turbo",
-                messages=[
-                    {"role": "system", "content": system_prompt},
-                    {"role": "user", "content": user_prompt},
-                ],
-                temperature=0.9,
-                max_tokens=1000,
-                presence_penalty=0.6,
-                frequency_penalty=0.7,
-                n=1,
-            )
+            async with aiohttp.ClientSession() as session:
+                async with session.get(url, headers=headers) as response:
+                    logger.debug(f"GoDaddy API response status: {response.status}")
+                    data = await response.json()
+                    logger.debug(f"GoDaddy API response data: {data}")
 
-            logger.debug("Received response from OpenAI API")
-            content = response.choices[0].message.content.strip()
-            logger.debug(f"Raw content from API:\n{content}")
-
-            # Extract names, removing the numbering
-            generated_names = []
-            for line in content.split("\n"):
-                logger.debug(f"Processing line: {line}")
-                name = line.strip()
-                if name:
-                    parts = name.split(". ", 1)
-                    if len(parts) > 1:
-                        name = parts[1].strip()
-                        logger.debug(f"Extracted name: {name}")
-                        if name and len(name) <= 15 and len(name) >= 3:
-                            generated_names.append(name)
-                            logger.debug(f"Added name to list: {name}")
-                        else:
-                            logger.debug(
-                                f"Name rejected - length requirements not met: {name}"
-                            )
+                    if response.status == 200:
+                        return {
+                            "available": data.get("available", False),
+                            "price": (
+                                data.get("price", 0) / 1000000
+                                if data.get("price")
+                                else None
+                            ),
+                            "error": None,
+                        }
                     else:
-                        logger.debug(f"Line doesn't match expected format: {line}")
+                        return {
+                            "available": False,
+                            "price": None,
+                            "error": data.get("message", "API Error"),
+                        }
+        except Exception as e:
+            logger.error(f"Error in GoDaddy API call: {str(e)}")
+            return {"available": False, "price": None, "error": str(e)}
 
-            # Check domain availability and prices concurrently
-            domain_results = await BrandGenerator.check_domains_batch(
-                generated_names, DOMAIN_EXTENSIONS
+    async def generate_names(self, keywords, num_suggestions=20):
+        prompt = f"""Generate {num_suggestions} unique and creative brand names based on these keywords: {keywords}.
+        Rules:
+        1. Names should be between 3-15 characters
+        2. Should be easy to pronounce
+        3. Can include real words or made-up words
+        4. Can include double letters for style (like Google)
+        5. Return only the names, one per line
+        6. Do not include numbers or dots in the names"""
+
+        try:
+            logger.debug("Starting OpenAI API call")
+            response = self.client.chat.completions.create(
+                model="gpt-3.5-turbo",
+                messages=[{"role": "user", "content": prompt}],
+                temperature=0.7,
+                max_tokens=200,
+            )
+            logger.debug(
+                f"OpenAI API response received: {response.choices[0].message.content}"
             )
 
-            # Organize results by name
-            results = []
-            for name in generated_names:
-                name_result = {"name": name, "domains": {}}
+            # Clean up brand names
+            brand_names = []
+            for line in response.choices[0].message.content.strip().split("\n"):
+                # Remove numbered list format (e.g., "1. StayCheck" -> "StayCheck")
+                if "." in line:
+                    parts = line.split(".", 1)  # Split on first period only
+                    if len(parts) == 2 and parts[0].strip().isdigit():
+                        name = parts[1].strip()
+                        if name and not any(c.isdigit() for c in name):
+                            brand_names.append(name)
+                else:
+                    name = line.strip()
+                    if name and not any(c.isdigit() for c in name):
+                        brand_names.append(name)
 
-                # Find all domain results for this name
-                for result in domain_results:
-                    domain = result["domain"]
-                    if domain.startswith(f"{name.lower()}."):
-                        ext = domain.split(".")[-1]
-                        name_result["domains"][ext] = {
-                            "domain": domain,
-                            "available": result["available"],
-                            "price": result["price"],
+            logger.debug(f"Cleaned brand names: {brand_names}")
+
+            if not brand_names:
+                logger.error("No valid brand names generated")
+                return []
+
+            results = []
+            extensions = ["com", "io", "ai", "app", "net"]
+
+            # Create all domain combinations
+            domain_checks = []
+            for name in brand_names:
+                for ext in extensions:
+                    domain_checks.append((name, ext))
+            logger.debug(f"Created {len(domain_checks)} domain combinations to check")
+
+            async with aiohttp.ClientSession(
+                timeout=aiohttp.ClientTimeout(total=30)
+            ) as session:
+                # Function to check domain and get score
+                async def check_domain_and_score(name_ext_tuple):
+                    try:
+                        name, ext = name_ext_tuple
+                        domain = f"{name}.{ext}"
+                        url = f"https://api.ote-godaddy.com/v1/domains/available?domain={domain}"
+                        headers = {
+                            "Authorization": f"sso-key {self.godaddy_api_key}:{self.godaddy_api_secret}",
+                            "accept": "application/json",
                         }
 
-                results.append(name_result)
+                        logger.debug(f"Starting domain check for: {domain}")
+                        async with session.get(
+                            url, headers=headers, timeout=10
+                        ) as response:
+                            data = await response.json()
+                            logger.debug(f"GoDaddy API response for {domain}: {data}")
 
-            # Sort results by best availability and pricing across all domains
-            def get_best_price(result):
-                available_prices = []
-                for domain_info in result["domains"].values():
-                    if domain_info["available"]:
-                        price = domain_info["price"]
+                            availability = {
+                                "available": data.get("available", False),
+                                "price": (
+                                    data.get("price", 0) / 1000000
+                                    if data.get("price")
+                                    else None
+                                ),
+                                "error": (
+                                    None
+                                    if response.status == 200
+                                    else data.get("message", "API Error")
+                                ),
+                            }
+
                         try:
-                            numeric_price = float(
-                                price.replace("$", "").replace("/yr", "")
+                            domain_score = self.domain_scorer.calculate_total_score(
+                                name, ext
                             )
-                            available_prices.append(numeric_price)
-                        except (ValueError, AttributeError):
-                            continue
+                            logger.debug(
+                                f"Domain score calculated for {domain}: {domain_score}"
+                            )
+                            logger.debug(f"Raw score object: {domain_score}")
+                            logger.debug(
+                                f"Total score: {domain_score.get('total_score')}"
+                            )
+                            logger.debug(
+                                f"Score details: {domain_score.get('details')}"
+                            )
 
-                return min(available_prices) if available_prices else float("inf")
+                            # Validate score structure
+                            if not isinstance(
+                                domain_score.get("total_score"), (int, float)
+                            ):
+                                logger.error(
+                                    f"Invalid total_score type for {domain}: {type(domain_score.get('total_score'))}"
+                                )
 
-            # Sort by best available price
-            results.sort(key=get_best_price)
+                            for key, detail in domain_score.get("details", {}).items():
+                                if not isinstance(detail.get("score"), (int, float)):
+                                    logger.error(
+                                        f"Invalid {key} score type for {domain}: {type(detail.get('score'))}"
+                                    )
+                        except Exception as score_error:
+                            logger.error(
+                                f"Error calculating score for {domain}: {str(score_error)}"
+                            )
+                            domain_score = {
+                                "total_score": 0,
+                                "details": {
+                                    "length": {
+                                        "score": 0,
+                                        "description": "Error calculating length score",
+                                    },
+                                    "dictionary": {
+                                        "score": 0,
+                                        "description": "Error calculating dictionary score",
+                                    },
+                                    "pronounceability": {
+                                        "score": 0,
+                                        "description": "Error calculating pronounceability score",
+                                    },
+                                    "repetition": {
+                                        "score": 0,
+                                        "description": "Error calculating repetition score",
+                                    },
+                                    "tld": {
+                                        "score": 0,
+                                        "description": "Error calculating TLD score",
+                                    },
+                                },
+                            }
 
-            logger.info(f"Returning {len(results)} results")
-            return results
+                        # Ensure the score object has the correct structure
+                        if (
+                            not isinstance(domain_score, dict)
+                            or "total_score" not in domain_score
+                            or "details" not in domain_score
+                        ):
+                            logger.error(
+                                f"Invalid score structure for {domain}: {domain_score}"
+                            )
+                            domain_score = {
+                                "total_score": 0,
+                                "details": {
+                                    "length": {
+                                        "score": 0,
+                                        "description": "Invalid score structure",
+                                    },
+                                    "dictionary": {
+                                        "score": 0,
+                                        "description": "Invalid score structure",
+                                    },
+                                    "pronounceability": {
+                                        "score": 0,
+                                        "description": "Invalid score structure",
+                                    },
+                                    "repetition": {
+                                        "score": 0,
+                                        "description": "Invalid score structure",
+                                    },
+                                    "tld": {
+                                        "score": 0,
+                                        "description": "Invalid score structure",
+                                    },
+                                },
+                            }
+
+                        return {
+                            "name": name,
+                            "ext": ext,
+                            "domain": domain,
+                            "available": availability["available"],
+                            "price": (
+                                f"${availability['price']}"
+                                if availability["available"] and availability["price"]
+                                else "N/A"
+                            ),
+                            "score": domain_score,
+                            "error": availability.get("error"),
+                        }
+                    except Exception as e:
+                        logger.error(f"Error checking domain {name}.{ext}: {str(e)}")
+                        return {
+                            "name": name,
+                            "ext": ext,
+                            "domain": f"{name}.{ext}",
+                            "available": False,
+                            "price": "N/A",
+                            "score": {
+                                "total_score": 0,
+                                "details": {
+                                    "length": {
+                                        "score": 0,
+                                        "description": "Error checking domain",
+                                    },
+                                    "dictionary": {
+                                        "score": 0,
+                                        "description": "Error checking domain",
+                                    },
+                                    "pronounceability": {
+                                        "score": 0,
+                                        "description": "Error checking domain",
+                                    },
+                                    "repetition": {
+                                        "score": 0,
+                                        "description": "Error checking domain",
+                                    },
+                                    "tld": {
+                                        "score": 0,
+                                        "description": "Error checking domain",
+                                    },
+                                },
+                            },
+                            "error": str(e),
+                        }
+
+                # Process domains in chunks
+                results = []
+                chunk_size = 5
+                for i in range(0, len(domain_checks), chunk_size):
+                    try:
+                        chunk = domain_checks[i : i + chunk_size]
+                        tasks = [check_domain_and_score(item) for item in chunk]
+                        chunk_results = await asyncio.gather(
+                            *tasks, return_exceptions=True
+                        )
+                        valid_results = []
+                        for result in chunk_results:
+                            if isinstance(result, Exception):
+                                logger.error(f"Task error: {str(result)}")
+                            else:
+                                valid_results.append(result)
+                        results.extend(valid_results)
+
+                        if i + chunk_size < len(domain_checks):
+                            await asyncio.sleep(0.1)
+                    except Exception as chunk_error:
+                        logger.error(f"Error processing chunk {i}: {str(chunk_error)}")
+
+                # Organize results by brand name
+                name_results = {}
+                for result in results:
+                    try:
+                        name = result["name"]
+                        if name not in name_results:
+                            name_results[name] = {"name": name, "domains": {}}
+                        name_results[name]["domains"][result["ext"]] = {
+                            "domain": result["domain"],
+                            "available": result["available"],
+                            "price": result["price"],
+                            "score": result["score"],
+                            "error": result["error"],
+                        }
+                        # Log the score data being added
+                        logger.debug(
+                            f"Adding score for {result['domain']}: {result['score']}"
+                        )
+                    except Exception as result_error:
+                        logger.error(f"Error processing result: {str(result_error)}")
+
+                logger.debug(f"Final results count: {len(name_results)}")
+                # Log a sample of the final data structure
+                if name_results:
+                    sample_name = next(iter(name_results))
+                    logger.debug(
+                        f"Sample result structure for {sample_name}: {name_results[sample_name]}"
+                    )
+                return list(name_results.values())
 
         except Exception as e:
             logger.error(f"Error in generate_names: {str(e)}", exc_info=True)
-            return []
+            raise

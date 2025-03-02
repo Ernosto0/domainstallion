@@ -2,6 +2,7 @@ from sqlalchemy import Column, Integer, String, Boolean, ForeignKey, Table, Date
 from sqlalchemy.orm import relationship, declarative_base
 from sqlalchemy.sql import func
 from passlib.context import CryptContext
+from datetime import datetime
 
 Base = declarative_base()
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
@@ -31,10 +32,16 @@ class Favorite(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     user_id = Column(Integer, ForeignKey("users.id"))
-    brand_name = Column(String, index=True)
-    domain_name = Column(String, index=True)
+    brand_name = Column(String)
+    domain_name = Column(String)
     domain_extension = Column(String)
     price = Column(String)
-    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    total_score = Column(Integer)  # Store the total score
+    length_score = Column(Integer)  # Store individual scores
+    dictionary_score = Column(Integer)
+    pronounceability_score = Column(Integer)
+    repetition_score = Column(Integer)
+    tld_score = Column(Integer)
+    created_at = Column(DateTime, default=datetime.utcnow)
 
     user = relationship("User", back_populates="favorites")
