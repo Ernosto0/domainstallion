@@ -51,6 +51,21 @@ templates = Jinja2Templates(directory="backend/templates")
 @app.middleware("http")
 async def debug_middleware(request: Request, call_next):
     print(f"Incoming request: {request.method} {request.url.path}")
+
+    # Check for auth header in request
+    auth_header = request.headers.get("Authorization")
+    print(f"Headers: {request.headers}")
+
+    if auth_header:
+        print(f"Auth header found: {auth_header}")
+    else:
+        print("No auth header found")
+        # Only redirect if it's a browser request (not an API call)
+        if request.url.path == "/favorites" and request.method == "GET":
+            accepts = request.headers.get("accept", "")
+            if "text/html" in accepts.lower():
+                return RedirectResponse(url="/", status_code=302)
+
     response = await call_next(request)
     print(f"Response status: {response.status_code}")
     return response
@@ -200,32 +215,107 @@ async def get_favorites(
     db: Session = Depends(get_db),
 ):
     try:
-        favorites = db.query(Favorite).filter(Favorite.user_id == current_user.id).all()
-        print(f"Found {len(favorites)} favorites for user {current_user.username}")
+        print(
+            f"Processing favorites request for user: {current_user.username if current_user else 'None'}"
+        )
+        print(f"Request headers: {dict(request.headers)}")
+
+        # Check if user is authenticated
+        if not current_user:
+            print("No authenticated user found")
+            # Check if this is an AJAX request
+            is_ajax = request.headers.get("X-Requested-With") == "XMLHttpRequest"
+            if is_ajax:
+                raise HTTPException(
+                    status_code=status.HTTP_401_UNAUTHORIZED,
+                    detail="Authentication required",
+                )
+            else:
+                print("Redirecting to home page")
+                return RedirectResponse(url="/", status_code=302)
+
+        print(f"User authenticated: {current_user.username}")
+
+        # Query favorites
+        try:
+            favorites = (
+                db.query(Favorite).filter(Favorite.user_id == current_user.id).all()
+            )
+            print(f"Found {len(favorites)} favorites for user {current_user.username}")
+
+            # Debug print each favorite
+            for fav in favorites:
+                print(
+                    f"Favorite ID: {fav.id}, Domain: {fav.domain_name}, Created: {fav.created_at}"
+                )
+
+        except Exception as db_error:
+            print(f"Database error: {str(db_error)}")
+            print(f"Database error type: {type(db_error)}")
+            import traceback
+
+            print(f"Traceback: {traceback.format_exc()}")
+            raise HTTPException(
+                status_code=500, detail=f"Database error: {str(db_error)}"
+            )
 
         # Format the dates for each favorite
         for favorite in favorites:
-            favorite.formatted_date = (
-                favorite.created_at.strftime("%Y-%m-%d %H:%M:%S")
-                if favorite.created_at
-                else ""
+            try:
+                favorite.formatted_date = (
+                    favorite.created_at.strftime("%Y-%m-%d %H:%M:%S")
+                    if favorite.created_at
+                    else ""
+                )
+                print(
+                    f"Formatted date for favorite {favorite.id}: {favorite.formatted_date}"
+                )
+            except Exception as date_error:
+                print(
+                    f"Error formatting date for favorite {favorite.id}: {str(date_error)}"
+                )
+                print(f"Date error type: {type(date_error)}")
+                print(f"Traceback: {traceback.format_exc()}")
+                favorite.formatted_date = ""
+
+        # Render template
+        try:
+            print("Attempting to render favorites template")
+            response = templates.TemplateResponse(
+                "favorites.html",
+                {
+                    "request": request,
+                    "favorites": favorites,
+                    "current_user": current_user,
+                    "title": "My Favorites - Brand Generator",
+                },
             )
-            print(
-                f"Favorite: {favorite.domain_name}, Score: {favorite.total_score}, Date: {favorite.formatted_date}"
+            print("Successfully rendered favorites template")
+            return response
+        except Exception as template_error:
+            print(f"Template error: {str(template_error)}")
+            print(f"Template error type: {type(template_error)}")
+            print(f"Traceback: {traceback.format_exc()}")
+            raise HTTPException(
+                status_code=500, detail=f"Template error: {str(template_error)}"
             )
 
+    except HTTPException as http_error:
+        print(f"HTTP Exception: {str(http_error)}")
+        raise http_error
+    except Exception as e:
+        print(f"Unexpected error in get_favorites: {str(e)}")
+        print(f"Error type: {type(e)}")
+        print(f"Traceback: {traceback.format_exc()}")
         return templates.TemplateResponse(
-            "favorites.html",
+            "index.html",
             {
                 "request": request,
-                "favorites": favorites,
-                "current_user": current_user,
-                "title": "My Favorites - Brand Generator",
+                "title": "Brand Name Generator",
+                "error": f"An unexpected error occurred: {str(e)}",
             },
+            status_code=500,
         )
-    except Exception as e:
-        print(f"Error in get_favorites: {str(e)}")
-        raise HTTPException(status_code=500, detail=str(e))
 
 
 @app.delete("/favorites/{favorite_id}")

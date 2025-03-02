@@ -1,3 +1,19 @@
+// Auth state
+let authToken = localStorage.getItem('authToken');
+let currentUser = localStorage.getItem('username');
+
+// Intercept all fetch requests to add authorization header
+const originalFetch = window.fetch;
+window.fetch = function(url, options = {}) {
+    options = options || {};
+    options.headers = options.headers || {};
+    const authToken = localStorage.getItem('authToken');
+    if (authToken) {
+        options.headers['Authorization'] = `Bearer ${authToken}`;
+    }
+    return originalFetch(url, options);
+};
+
 // Wait for the DOM to be fully loaded
 document.addEventListener('DOMContentLoaded', function() {
     // Common elements
@@ -176,6 +192,7 @@ document.addEventListener('DOMContentLoaded', function() {
             e.preventDefault();
             
             const authToken = localStorage.getItem('authToken');
+            console.log('Auth token present:', !!authToken);
             
             if (!authToken) {
                 const loginModal = new bootstrap.Modal(document.getElementById('loginModal'));
@@ -184,47 +201,54 @@ document.addEventListener('DOMContentLoaded', function() {
             }
 
             try {
+                console.log('Fetching favorites...');
                 const response = await fetch('/favorites', {
+                    method: 'GET',
                     headers: {
-                        'Authorization': `Bearer ${authToken}`
+                        'Authorization': `Bearer ${authToken}`,
+                        'Accept': 'text/html',
+                        'X-Requested-With': 'XMLHttpRequest'
                     }
                 });
 
+                console.log('Response status:', response.status);
+                const responseText = await response.text();
+                console.log('Response text:', responseText);
+
                 if (response.ok) {
                     // Replace the current page content with the favorites page
-                    document.open();
-                    document.write(await response.text());
-                    document.close();
-                    // Update the URL
-                    window.history.pushState({}, '', '/favorites');
+                    document.documentElement.innerHTML = responseText;
+                    
+                    // Reinitialize necessary functions and event listeners
+                    initializeFavoritesPage();
+                    
+                    // Reinitialize any necessary scripts
+                    updateAuthUI();
+                    
+                    // Reinitialize Bootstrap components if needed
+                    if (typeof bootstrap !== 'undefined') {
+                        const tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+                        tooltipTriggerList.map(function (tooltipTriggerEl) {
+                            return new bootstrap.Tooltip(tooltipTriggerEl);
+                        });
+                    }
                 } else if (response.status === 401) {
-                    // Clear invalid token
+                    console.log('Unauthorized access, showing login modal');
                     localStorage.removeItem('authToken');
                     localStorage.removeItem('username');
-                    // Show login modal
                     const loginModal = new bootstrap.Modal(document.getElementById('loginModal'));
                     loginModal.show();
                 } else {
-                    console.error('Error loading favorites:', await response.text());
+                    console.error('Error fetching favorites. Status:', response.status);
+                    console.error('Response text:', responseText);
+                    showToast('Failed to load favorites: ' + (responseText || 'Unknown error'), 'error');
                 }
             } catch (error) {
-                console.error('Error:', error);
+                console.error('Error in favorites fetch:', error);
+                showToast('Failed to load favorites: ' + error.message, 'error');
             }
         });
     }
-
-    // Intercept all fetch requests to add authorization header
-    const originalFetch = window.fetch;
-    window.fetch = function(url, options = {}) {
-        const authToken = localStorage.getItem('authToken');
-        if (authToken) {
-            options.headers = {
-                ...options.headers,
-                'Authorization': `Bearer ${authToken}`
-            };
-        }
-        return originalFetch(url, options);
-    };
 
     // Add this before any navigation that requires authentication
     function addAuthHeadersToXHR() {
@@ -244,24 +268,23 @@ document.addEventListener('DOMContentLoaded', function() {
     addAuthHeadersToXHR();
 });
 
-// Auth state
-let authToken = localStorage.getItem('authToken');
-let currentUser = localStorage.getItem('username');
-
 // Update UI based on auth state
 function updateAuthUI() {
     const loginRegisterNav = document.getElementById('loginRegisterNav');
     const userNav = document.getElementById('userNav');
     const username = document.getElementById('username');
     
-    if (authToken && currentUser) {
-        loginRegisterNav.classList.add('d-none');
-        userNav.classList.remove('d-none');
-        username.textContent = currentUser;
-    } else {
-        loginRegisterNav.classList.remove('d-none');
-        userNav.classList.add('d-none');
-        username.textContent = '';
+    // Only proceed if elements exist
+    if (loginRegisterNav && userNav && username) {
+        if (authToken && currentUser) {
+            loginRegisterNav.classList.add('d-none');
+            userNav.classList.remove('d-none');
+            username.textContent = currentUser;
+        } else {
+            loginRegisterNav.classList.remove('d-none');
+            userNav.classList.add('d-none');
+            username.textContent = '';
+        }
     }
 }
 
@@ -382,6 +405,16 @@ async function removeFavorite(favoriteId) {
 async function addToFavorites(event, brandName, domainName, extension, price) {
     event.preventDefault();
     
+    const authToken = localStorage.getItem('authToken');
+    if (!authToken) {
+        const loginModal = new bootstrap.Modal(document.getElementById('loginModal'));
+        loginModal.show();
+        return;
+    }
+    
+    // Clean the domain name by removing the extension if it's present
+    const cleanDomainName = domainName.replace(`.${extension}`, '');
+    
     // Get the score data from the domain card
     const domainCard = event.target.closest('.domain-card');
     const totalScore = parseInt(domainCard.querySelector('.score-value').textContent);
@@ -399,6 +432,8 @@ async function addToFavorites(event, brandName, domainName, extension, price) {
     scoreDetails.forEach(item => {
         const scoreType = item.querySelector('small').textContent.toLowerCase();
         const scoreValue = parseInt(item.querySelector('.score-bar').style.width);
+        
+        // Map score types to the correct field names
         switch(scoreType) {
             case 'length':
                 scores.length_score = scoreValue;
@@ -427,7 +462,7 @@ async function addToFavorites(event, brandName, domainName, extension, price) {
             },
             body: JSON.stringify({
                 brand_name: brandName,
-                domain_name: domainName,
+                domain_name: cleanDomainName,
                 domain_extension: extension,
                 price: price,
                 total_score: totalScore,
@@ -439,6 +474,14 @@ async function addToFavorites(event, brandName, domainName, extension, price) {
             showToast('Added to favorites!');
             const button = event.target.closest('.favorite-btn');
             button.classList.add('btn-success');
+            button.disabled = true;
+            button.innerHTML = '<span class="heart-icon">♥</span>';
+        } else if (response.status === 401) {
+            // If unauthorized, show login modal
+            localStorage.removeItem('authToken');
+            localStorage.removeItem('username');
+            const loginModal = new bootstrap.Modal(document.getElementById('loginModal'));
+            loginModal.show();
         } else {
             const data = await response.json();
             showToast(data.detail || 'Failed to add to favorites', 'error');
@@ -447,6 +490,19 @@ async function addToFavorites(event, brandName, domainName, extension, price) {
         console.error('Error adding to favorites:', error);
         showToast('Failed to add to favorites', 'error');
     }
+}
+
+// Add toast notification function if it doesn't exist
+function showToast(message, type = 'success') {
+    const toast = document.createElement('div');
+    toast.className = `toast-notification ${type}`;
+    toast.textContent = message;
+    document.body.appendChild(toast);
+    
+    // Remove the toast after 3 seconds
+    setTimeout(() => {
+        toast.remove();
+    }, 3000);
 }
 
 function createDomainCard(brandName, ext, info) {
@@ -515,6 +571,67 @@ function createDomainCard(brandName, ext, info) {
     `;
     
     return domainCard;
+}
+
+// Function to initialize the favorites page
+function initializeFavoritesPage() {
+    // Define the deleteFavorite function
+    window.deleteFavorite = async function(favoriteId) {
+        try {
+            const response = await fetch(`/favorites/${favoriteId}`, {
+                method: 'DELETE',
+                headers: {
+                    'Authorization': `Bearer ${authToken}`,
+                }
+            });
+            
+            if (response.ok) {
+                // Remove the favorite item from the DOM
+                const favoriteElement = document.querySelector(`[data-favorite-id="${favoriteId}"]`);
+                if (favoriteElement) {
+                    favoriteElement.remove();
+                }
+                showToast('Favorite removed successfully');
+                
+                // Update the favorites count
+                const countElement = document.getElementById('favoritesCount');
+                if (countElement) {
+                    const currentCount = parseInt(countElement.textContent) - 1;
+                    countElement.textContent = currentCount;
+                }
+            } else {
+                showToast('Failed to remove favorite', 'error');
+            }
+        } catch (error) {
+            console.error('Error removing favorite:', error);
+            showToast('Failed to remove favorite', 'error');
+        }
+    };
+
+    // Add sorting functionality
+    const sortButtons = document.querySelectorAll('[data-sort]');
+    sortButtons.forEach(button => {
+        button.addEventListener('click', function() {
+            const sortBy = this.getAttribute('data-sort');
+            const favoritesContainer = document.querySelector('.favorites-list');
+            const favorites = Array.from(favoritesContainer.children);
+            
+            favorites.sort((a, b) => {
+                const aValue = a.getAttribute(`data-${sortBy}`);
+                const bValue = b.getAttribute(`data-${sortBy}`);
+                
+                if (sortBy === 'date') {
+                    return new Date(bValue) - new Date(aValue);
+                } else if (sortBy === 'score') {
+                    return parseInt(bValue) - parseInt(aValue);
+                } else {
+                    return aValue.localeCompare(bValue);
+                }
+            });
+            
+            favorites.forEach(favorite => favoritesContainer.appendChild(favorite));
+        });
+    });
 }
 
 // Initialize auth UI on page load
