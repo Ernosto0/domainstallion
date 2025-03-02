@@ -1,4 +1,4 @@
-from fastapi import FastAPI, Request, HTTPException, Depends, status
+from fastapi import FastAPI, Request, HTTPException, Depends, status, BackgroundTasks
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
@@ -10,12 +10,19 @@ from datetime import timedelta
 from sqlalchemy.orm import Session
 import os
 import logging
+import asyncio
 
 # Enable insecure transport for development
 os.environ["OAUTHLIB_INSECURE_TRANSPORT"] = "1"
 
 from .database import engine, get_db
-from .models import Base, User, Favorite, WatchlistItem as WatchlistItemModel
+from .models import (
+    Base,
+    User,
+    Favorite,
+    WatchlistItem as WatchlistItemModel,
+    AlertHistory,
+)
 from .auth import (
     authenticate_user,
     create_access_token,
@@ -26,6 +33,7 @@ from .auth import (
 from .google_auth import router as google_auth_router
 from backend.services.brand_generator import BrandGenerator
 from backend.schemas import WatchlistItemCreate, WatchlistItem
+from .tasks import check_watchlist_domains
 
 # Create database tables
 Base.metadata.create_all(bind=engine)
@@ -353,17 +361,25 @@ async def add_to_watchlist(
             status_code=400, detail="Domain is already in your watchlist"
         )
 
+    # Create new watchlist item with alerts disabled by default
     db_item = WatchlistItemModel(
         user_id=current_user.id,
         domain_name=watchlist_item.domain_name,
         domain_extension=watchlist_item.domain_extension,
         status="taken",
-        notify_when_available=True,
+        notify_when_available=False,  # Explicitly set to False
     )
 
     db.add(db_item)
     db.commit()
     db.refresh(db_item)
+
+    # Log the creation of the watchlist item
+    logger = logging.getLogger(__name__)
+    logger.info(
+        f"Added domain {db_item.domain_name}.{db_item.domain_extension} to watchlist for user {current_user.username}"
+    )
+
     return db_item
 
 
@@ -388,3 +404,67 @@ async def remove_from_watchlist(
     db.delete(watchlist_item)
     db.commit()
     return {"message": "Domain removed from watchlist"}
+
+
+class NotifyUpdate(BaseModel):
+    notify_when_available: bool
+
+
+@app.put("/watchlist/{watchlist_id}/notify")
+async def update_watchlist_notification(
+    watchlist_id: int,
+    notify_update: NotifyUpdate,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    watchlist_item = (
+        db.query(WatchlistItemModel)
+        .filter(
+            WatchlistItemModel.id == watchlist_id,
+            WatchlistItemModel.user_id == current_user.id,
+        )
+        .first()
+    )
+
+    if not watchlist_item:
+        raise HTTPException(status_code=404, detail="Watchlist item not found")
+
+    # Track the change in alert settings
+    was_enabled = watchlist_item.notify_when_available
+    watchlist_item.notify_when_available = notify_update.notify_when_available
+
+    # Create an alert history entry when alerts are enabled
+    if not was_enabled and notify_update.notify_when_available:
+        alert = AlertHistory(
+            watchlist_item_id=watchlist_id,
+            alert_type="alerts_enabled",
+            message=f"Alerts enabled for domain {watchlist_item.domain_name}.{watchlist_item.domain_extension}",
+            delivered=True,
+        )
+        db.add(alert)
+        logger = logging.getLogger(__name__)
+        logger.info(
+            f"Alerts enabled for domain {watchlist_item.domain_name}.{watchlist_item.domain_extension}"
+        )
+    elif was_enabled and not notify_update.notify_when_available:
+        alert = AlertHistory(
+            watchlist_item_id=watchlist_id,
+            alert_type="alerts_disabled",
+            message=f"Alerts disabled for domain {watchlist_item.domain_name}.{watchlist_item.domain_extension}",
+            delivered=True,
+        )
+        db.add(alert)
+        logger = logging.getLogger(__name__)
+        logger.info(
+            f"Alerts disabled for domain {watchlist_item.domain_name}.{watchlist_item.domain_extension}"
+        )
+
+    db.commit()
+    db.refresh(watchlist_item)
+    return watchlist_item
+
+
+@app.on_event("startup")
+async def startup_event():
+    # Start the background task
+    asyncio.create_task(check_watchlist_domains())

@@ -157,6 +157,14 @@
                                                     onclick="removeFromWatchlist({{ domain.id }})">
                                                 Remove
                                             </button>
+                                            <button class="btn btn-sm alert-toggle {% if domain.notify_when_available %}active{% endif %}"
+                                                    onclick="toggleAlert({{ domain.id }}, this)"
+                                                    data-notify="{{ domain.notify_when_available|lower }}"
+                                                    data-bs-toggle="tooltip"
+                                                    data-bs-placement="top"
+                                                    title="{% if domain.notify_when_available %}Notifications enabled{% else %}Get notified when available{% endif %}">
+                                                <i class="bi bi-bell{% if not domain.notify_when_available %}-slash{% endif %}"></i>
+                                            </button>
                                         </div>
                                     </div>
                                 </div>

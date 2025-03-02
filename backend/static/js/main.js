@@ -3,20 +3,72 @@ let authToken = localStorage.getItem('authToken');
 let currentUser = localStorage.getItem('username');
 
 // Add to watchlist function
-window.addToWatchlist = async function(domainName, extension) {
+window.addToWatchlist = async function(event, brandName, extension) {
+    event.preventDefault();
+    console.log('Adding to watchlist - Raw inputs:', { brandName, extension });
+    
+    // Check authentication first
+    const authToken = localStorage.getItem('authToken');
+    if (!authToken) {
+        console.log('No auth token found, showing login modal');
+        const loginModal = new bootstrap.Modal(document.getElementById('loginModal'));
+        loginModal.show();
+        return;
+    }
+    
     try {
+        // Type checking and validation
+        if (!brandName || typeof brandName !== 'string') {
+            console.error('Invalid brand name:', brandName);
+            showToast('Invalid domain name format', 'error');
+            return;
+        }
+        
+        if (!extension || typeof extension !== 'string') {
+            console.error('Invalid extension:', extension);
+            showToast('Invalid extension format', 'error');
+            return;
+        }
+
+        // Clean the domain name by removing the extension if it's present
+        const cleanDomainName = brandName.includes(`.${extension}`) 
+            ? brandName.split(`.${extension}`)[0] 
+            : brandName;
+            
+        console.log('Cleaned domain name:', cleanDomainName);
+        
+        const payload = {
+            domain_name: cleanDomainName,
+            domain_extension: extension
+        };
+        console.log('Request payload:', payload);
+        
         const response = await fetch('/watchlist', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
-                'Authorization': `Bearer ${localStorage.getItem('authToken')}`
+                'Authorization': `Bearer ${authToken}`
             },
-            body: JSON.stringify({
-                domain_name: domainName,
-                domain_extension: extension,
-                notify_when_available: true
-            })
+            body: JSON.stringify(payload)
         });
+
+        console.log('Response status:', response.status);
+        
+        if (response.status === 401) {
+            console.log('Token expired or invalid, showing login modal');
+            localStorage.removeItem('authToken');
+            localStorage.removeItem('username');
+            const loginModal = new bootstrap.Modal(document.getElementById('loginModal'));
+            loginModal.show();
+            return;
+        }
+        
+        if (response.status === 422) {
+            const errorData = await response.json();
+            console.error('Validation error:', errorData);
+            showToast(errorData.detail || 'Invalid request format', 'error');
+            return;
+        }
 
         if (response.ok) {
             showToast('Domain added to watchlist successfully', 'success');
@@ -26,8 +78,17 @@ window.addToWatchlist = async function(domainName, extension) {
                 const currentCount = parseInt(watchlistCount.textContent);
                 watchlistCount.textContent = currentCount + 1;
             }
+            
+            // Update button appearance
+            const button = event.target.closest('.watchlist-btn');
+            if (button) {
+                button.classList.add('btn-info');
+                button.disabled = true;
+                button.innerHTML = '<i class="bi bi-eye-fill"></i>';
+            }
         } else {
             const errorData = await response.json();
+            console.error('Server error:', errorData);
             showToast(errorData.detail || 'Failed to add domain to watchlist', 'error');
         }
     } catch (error) {
@@ -358,17 +419,44 @@ document.getElementById('loginForm').addEventListener('submit', async (e) => {
         const data = await response.json();
         
         if (response.ok) {
+            // Store auth data
             localStorage.setItem('authToken', data.access_token);
             localStorage.setItem('username', username);
             currentUser = username;
             authToken = data.access_token;
+            
+            // Update UI
             updateAuthUI();
-            bootstrap.Modal.getInstance(document.getElementById('loginModal')).hide();
+            
+            // Hide login modal
+            const loginModal = bootstrap.Modal.getInstance(document.getElementById('loginModal'));
+            if (loginModal) {
+                loginModal.hide();
+            }
+            
+            // Show success message
+            showToast('Successfully logged in', 'success');
+            
+            // If there was a pending action (like adding to watchlist), retry it
+            const pendingAction = localStorage.getItem('pendingAction');
+            if (pendingAction) {
+                try {
+                    const action = JSON.parse(pendingAction);
+                    if (action.type === 'addToWatchlist') {
+                        addToWatchlist(new Event('click'), action.brandName, action.extension);
+                    }
+                } catch (e) {
+                    console.error('Error retrying pending action:', e);
+                } finally {
+                    localStorage.removeItem('pendingAction');
+                }
+            }
         } else {
             errorDiv.textContent = data.detail;
             errorDiv.classList.remove('d-none');
         }
     } catch (error) {
+        console.error('Login error:', error);
         errorDiv.textContent = 'An error occurred. Please try again.';
         errorDiv.classList.remove('d-none');
     }
@@ -703,7 +791,7 @@ function createDomainCard(brandName, ext, info) {
         ` : `
             <div class="mt-2">
                 <button class="btn btn-sm btn-outline-secondary w-100 watchlist-btn"
-                        onclick="addToWatchlist(event, '${brandName}', '${brandName}.${ext}', '${ext}')">
+                        onclick="addToWatchlist(event, '${brandName}', '${ext}')">
                     <i class="bi bi-eye"></i> Add to Watchlist
                 </button>
             </div>
@@ -727,6 +815,54 @@ function initializeFavoritesPage() {
         const watchlistItems = watchlistContent.querySelectorAll('.watchlist-list > div');
         console.log('Found watchlist items:', watchlistItems.length);
     }
+
+    // Define toggleAlert function
+    window.toggleAlert = async function(id, button) {
+        try {
+            const currentState = button.getAttribute('data-notify') === 'true';
+            const response = await fetch(`/watchlist/${id}/notify`, {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${localStorage.getItem('authToken')}`
+                },
+                body: JSON.stringify({
+                    notify_when_available: !currentState
+                })
+            });
+
+            if (response.ok) {
+                button.setAttribute('data-notify', (!currentState).toString());
+                
+                // Update button appearance
+                if (!currentState) {
+                    button.classList.add('active');
+                    button.querySelector('i').classList.remove('bi-bell-slash');
+                    button.querySelector('i').classList.add('bi-bell');
+                    button.setAttribute('title', 'Notifications enabled');
+                } else {
+                    button.classList.remove('active');
+                    button.querySelector('i').classList.remove('bi-bell');
+                    button.querySelector('i').classList.add('bi-bell-slash');
+                    button.setAttribute('title', 'Get notified when available');
+                }
+                
+                // Update tooltip if it exists
+                const tooltip = bootstrap.Tooltip.getInstance(button);
+                if (tooltip) {
+                    tooltip.dispose();
+                }
+                new bootstrap.Tooltip(button);
+
+                showToast('success', !currentState ? 'Alerts enabled' : 'Alerts disabled');
+            } else {
+                showToast('error', 'Failed to update alert settings');
+            }
+        } catch (error) {
+            console.error('Error toggling alert:', error);
+            showToast('error', 'Failed to update alert settings');
+        }
+    };
 
     // Define removeFromWatchlist function
     window.removeFromWatchlist = async function(id) {

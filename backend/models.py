@@ -67,5 +67,21 @@ class WatchlistItem(Base):
     status = Column(String, default="taken")  # "taken" or "available"
     created_at = Column(DateTime, default=datetime.utcnow)
     last_checked = Column(DateTime, default=datetime.utcnow)
-    notify_when_available = Column(Boolean, default=True)
+    notify_when_available = Column(Boolean, default=False)
     user = relationship("User", back_populates="watchlist")
+    alerts = relationship(
+        "AlertHistory", back_populates="watchlist_item", cascade="all, delete-orphan"
+    )
+
+
+class AlertHistory(Base):
+    __tablename__ = "alert_history"
+
+    id = Column(Integer, primary_key=True, index=True)
+    watchlist_item_id = Column(Integer, ForeignKey("watchlist.id"))
+    sent_at = Column(DateTime, default=datetime.utcnow)
+    alert_type = Column(String)  # e.g., "available", "price_change", etc.
+    message = Column(String)
+    delivered = Column(Boolean, default=False)
+
+    watchlist_item = relationship("WatchlistItem", back_populates="alerts")
