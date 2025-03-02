@@ -1,12 +1,17 @@
 from fastapi import FastAPI, Request, HTTPException, Depends, status
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from fastapi.security import OAuth2PasswordRequestForm
+from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 from typing import List, Optional, Dict
 from datetime import timedelta
 from sqlalchemy.orm import Session
+import os
+
+# Enable insecure transport for development
+os.environ["OAUTHLIB_INSECURE_TRANSPORT"] = "1"
 
 from .database import engine, get_db
 from .models import Base, User, Favorite
@@ -15,7 +20,9 @@ from .auth import (
     create_access_token,
     get_current_user,
     ACCESS_TOKEN_EXPIRE_MINUTES,
+    get_password_hash,
 )
+from .google_auth import router as google_auth_router
 from backend.services.brand_generator import BrandGenerator
 
 # Create database tables
@@ -23,11 +30,55 @@ Base.metadata.create_all(bind=engine)
 
 app = FastAPI(title="Brand Name Generator", version="1.0.0")
 
+# Configure CORS
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
 # Mount static files
 app.mount("/static", StaticFiles(directory="backend/static"), name="static")
 
 # Configure templates
 templates = Jinja2Templates(directory="backend/templates")
+
+
+# Add debug middleware
+@app.middleware("http")
+async def debug_middleware(request: Request, call_next):
+    print(f"Incoming request: {request.method} {request.url.path}")
+    response = await call_next(request)
+    print(f"Response status: {response.status_code}")
+    return response
+
+
+# Include Google OAuth routes at the root level
+app.include_router(google_auth_router)
+
+
+# Error handler for 404 Not Found
+@app.exception_handler(404)
+async def not_found_exception_handler(request: Request, exc: HTTPException):
+    print(f"404 error for path: {request.url.path}")
+    if request.url.path.startswith("/auth/google"):
+        print("Forwarding Google OAuth request...")
+        if request.url.path == "/auth/google/login":
+            return await google_auth_router.google_login(request)
+        elif request.url.path == "/auth/google/callback":
+            db = next(get_db())
+            return await google_auth_router.google_callback(request, db)
+    return templates.TemplateResponse(
+        "index.html",
+        {
+            "request": request,
+            "title": "Brand Name Generator",
+            "error": "Page not found. Please try again.",
+        },
+        status_code=404,
+    )
 
 
 # Pydantic models
@@ -96,7 +147,7 @@ async def register(user: UserCreate, db: Session = Depends(get_db)):
     if db_user:
         raise HTTPException(status_code=400, detail="Email already registered")
 
-    hashed_password = User.get_password_hash(user.password)
+    hashed_password = get_password_hash(user.password)
     db_user = User(
         username=user.username, email=user.email, hashed_password=hashed_password
     )

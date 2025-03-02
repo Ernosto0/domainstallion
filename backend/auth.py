@@ -8,6 +8,7 @@ from backend.database import get_db
 from backend.models import User
 import os
 from dotenv import load_dotenv
+from passlib.context import CryptContext
 
 load_dotenv()
 
@@ -16,7 +17,17 @@ SECRET_KEY = os.getenv("JWT_SECRET_KEY", "your-secret-key")
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 30
 
+# Password hashing
+pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
+
+
+def get_password_hash(password: str) -> str:
+    return pwd_context.hash(password)
+
+
+def verify_password(plain_password: str, hashed_password: str) -> bool:
+    return pwd_context.verify(plain_password, hashed_password)
 
 
 def create_access_token(data: dict, expires_delta: Optional[timedelta] = None):

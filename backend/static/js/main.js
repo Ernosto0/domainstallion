@@ -1,9 +1,13 @@
 // Wait for the DOM to be fully loaded
 document.addEventListener('DOMContentLoaded', function() {
+    // Common elements
     const form = document.getElementById('brandForm');
     const loading = document.getElementById('loading');
     const resultsContainer = document.querySelector('.results-container');
     const resultsDiv = document.getElementById('results');
+    const favoritesContainer = document.querySelector('.favorites-container');
+    const searchContainer = document.querySelector('.search-container');
+    const viewFavoritesBtn = document.getElementById('viewFavorites');
 
     if (form) {
         form.addEventListener('submit', async function(e) {
@@ -143,17 +147,19 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
-    // Add smooth scrolling to all links
+    // Add smooth scrolling to all links with hash
     document.querySelectorAll('a[href^="#"]').forEach(anchor => {
-        anchor.addEventListener('click', function (e) {
-            e.preventDefault();
-            const target = document.querySelector(this.getAttribute('href'));
-            if (target) {
-                target.scrollIntoView({
-                    behavior: 'smooth'
-                });
-            }
-        });
+        if (anchor.getAttribute('href') !== '#') {  // Skip empty hash
+            anchor.addEventListener('click', function (e) {
+                e.preventDefault();
+                const target = document.querySelector(this.getAttribute('href'));
+                if (target) {
+                    target.scrollIntoView({
+                        behavior: 'smooth'
+                    });
+                }
+            });
+        }
     });
 
     // Initialize tooltips if Bootstrap is present
@@ -161,6 +167,113 @@ document.addEventListener('DOMContentLoaded', function() {
         const tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
         tooltipTriggerList.map(function (tooltipTriggerEl) {
             return new bootstrap.Tooltip(tooltipTriggerEl);
+        });
+    }
+
+    // Handle favorites view
+    if (viewFavoritesBtn) {
+        viewFavoritesBtn.addEventListener('click', async function(e) {
+            e.preventDefault();
+            
+            if (!authToken) {
+                const loginModal = new bootstrap.Modal(document.getElementById('loginModal'));
+                loginModal.show();
+                return;
+            }
+
+            try {
+                console.log('Fetching favorites with token:', authToken);
+                const response = await fetch('/favorites', {
+                    method: 'GET',
+                    headers: {
+                        'Authorization': `Bearer ${authToken}`,
+                        'Accept': 'application/json'
+                    }
+                });
+
+                console.log('Response status:', response.status);
+                const responseText = await response.text();
+                console.log('Response text:', responseText);
+
+                if (!response.ok) {
+                    if (response.status === 401) {
+                        // Token expired or invalid, clear auth and show login
+                        localStorage.removeItem('authToken');
+                        localStorage.removeItem('username');
+                        authToken = null;
+                        currentUser = null;
+                        updateAuthUI();
+                        const loginModal = new bootstrap.Modal(document.getElementById('loginModal'));
+                        loginModal.show();
+                        return;
+                    }
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+
+                const favorites = JSON.parse(responseText);
+                const favoritesDiv = document.getElementById('favorites');
+                favoritesDiv.innerHTML = '';
+
+                if (favorites.length === 0) {
+                    favoritesDiv.innerHTML = `
+                        <div class="col-12">
+                            <div class="alert alert-info">
+                                You haven't saved any favorites yet.
+                            </div>
+                        </div>
+                    `;
+                } else {
+                    favorites.forEach(favorite => {
+                        const favoriteCard = `
+                            <div class="col-md-6 col-lg-4 mb-4">
+                                <div class="brand-card">
+                                    <div class="d-flex justify-content-between align-items-start mb-3">
+                                        <h3 class="h4 mb-0">${favorite.brand_name}</h3>
+                                        <button class="btn btn-sm btn-outline-danger" 
+                                                onclick="removeFavorite(${favorite.id})">
+                                            Remove
+                                        </button>
+                                    </div>
+                                    <div class="domain-card mb-2">
+                                        <div class="d-flex justify-content-between align-items-center">
+                                            <span class="domain-name">${favorite.domain_name}${favorite.domain_extension}</span>
+                                            <span class="domain-badge domain-available">Price: ${favorite.price}</span>
+                                        </div>
+                                        <div class="mt-2">
+                                            <a href="https://domains.google.com/registrar/search?searchTerm=${favorite.domain_name}${favorite.domain_extension}" 
+                                               target="_blank" 
+                                               class="btn btn-sm btn-outline-primary w-100">
+                                                Register Domain
+                                            </a>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        `;
+                        favoritesDiv.innerHTML += favoriteCard;
+                    });
+                }
+
+                // Show favorites, hide other containers
+                favoritesContainer.classList.remove('d-none');
+                resultsContainer.style.display = 'none';
+                searchContainer.classList.add('d-none');
+            } catch (error) {
+                console.error('Error fetching favorites:', error);
+                const favoritesDiv = document.getElementById('favorites');
+                favoritesDiv.innerHTML = `
+                    <div class="col-12">
+                        <div class="alert alert-danger">
+                            Failed to load favorites. Please try logging in again.
+                            <br>
+                            Error: ${error.message}
+                        </div>
+                    </div>
+                `;
+                favoritesContainer.classList.remove('d-none');
+                resultsContainer.style.display = 'none';
+                searchContainer.classList.add('d-none');
+            }
         });
     }
 });
@@ -278,64 +391,6 @@ document.getElementById('logout').addEventListener('click', (e) => {
     authToken = null;
     currentUser = null;
     updateAuthUI();
-});
-
-// Handle favorites view
-document.getElementById('viewFavorites').addEventListener('click', async (e) => {
-    e.preventDefault();
-    const resultsContainer = document.querySelector('.results-container');
-    const favoritesContainer = document.querySelector('.favorites-container');
-    
-    try {
-        const response = await fetch('/favorites', {
-            headers: {
-                'Authorization': `Bearer ${authToken}`,
-            },
-        });
-        
-        if (response.ok) {
-            const favorites = await response.json();
-            const favoritesDiv = document.getElementById('favorites');
-            favoritesDiv.innerHTML = '';
-            
-            favorites.forEach(favorite => {
-                const favoriteCard = `
-                    <div class="col-md-6 col-lg-4 mb-4">
-                        <div class="brand-card">
-                            <div class="d-flex justify-content-between align-items-start mb-3">
-                                <h3 class="h4 mb-0">${favorite.brand_name}</h3>
-                            </div>
-                            <div class="domains-container">
-                                <div class="domain-card mb-2">
-                                    <div class="d-flex justify-content-between align-items-center">
-                                        <span class="domain-name">.${favorite.domain_extension}</span>
-                                        <span class="domain-badge domain-available">Available - ${favorite.price}</span>
-                                    </div>
-                                    <div class="mt-2">
-                                        <a href="https://domains.google.com/registrar/search?searchTerm=${favorite.domain_name}" 
-                                           target="_blank" 
-                                           class="btn btn-sm btn-outline-primary w-100">
-                                            Register Domain
-                                        </a>
-                                    </div>
-                                </div>
-                                <button class="btn btn-sm btn-outline-danger w-100 mt-2" 
-                                        onclick="removeFavorite(${favorite.id})">
-                                    Remove from Favorites
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-                `;
-                favoritesDiv.innerHTML += favoriteCard;
-            });
-            
-            resultsContainer.style.display = 'none';
-            favoritesContainer.classList.remove('d-none');
-        }
-    } catch (error) {
-        console.error('Error fetching favorites:', error);
-    }
 });
 
 // Remove favorite
