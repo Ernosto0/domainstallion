@@ -2,6 +2,40 @@
 let authToken = localStorage.getItem('authToken');
 let currentUser = localStorage.getItem('username');
 
+// Add to watchlist function
+window.addToWatchlist = async function(domainName, extension) {
+    try {
+        const response = await fetch('/watchlist', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${localStorage.getItem('authToken')}`
+            },
+            body: JSON.stringify({
+                domain_name: domainName,
+                domain_extension: extension,
+                notify_when_available: true
+            })
+        });
+
+        if (response.ok) {
+            showToast('Domain added to watchlist successfully', 'success');
+            // Update watchlist count if we're on the favorites page
+            const watchlistCount = document.getElementById('watchlistCount');
+            if (watchlistCount) {
+                const currentCount = parseInt(watchlistCount.textContent);
+                watchlistCount.textContent = currentCount + 1;
+            }
+        } else {
+            const errorData = await response.json();
+            showToast(errorData.detail || 'Failed to add domain to watchlist', 'error');
+        }
+    } catch (error) {
+        console.error('Error adding to watchlist:', error);
+        showToast('Failed to add domain to watchlist', 'error');
+    }
+};
+
 // Intercept all fetch requests to add authorization header
 const originalFetch = window.fetch;
 window.fetch = function(url, options = {}) {
@@ -201,7 +235,7 @@ document.addEventListener('DOMContentLoaded', function() {
             }
 
             try {
-                console.log('Fetching favorites...');
+                console.log('Fetching favorites and watchlist...');
                 const response = await fetch('/favorites', {
                     method: 'GET',
                     headers: {
@@ -213,13 +247,30 @@ document.addEventListener('DOMContentLoaded', function() {
 
                 console.log('Response status:', response.status);
                 const responseText = await response.text();
-                console.log('Response text:', responseText);
+                console.log('Response text length:', responseText.length);
+                console.log('First 500 characters of response:', responseText.substring(0, 500));
 
                 if (response.ok) {
                     // Replace the current page content with the favorites page
                     document.documentElement.innerHTML = responseText;
+                    console.log('Page content updated');
+                    
+                    // Check if watchlist tab and content exist
+                    const watchlistTab = document.getElementById('watchlist-tab');
+                    const watchlistContent = document.getElementById('watchlist');
+                    console.log('Watchlist tab exists:', !!watchlistTab);
+                    console.log('Watchlist content exists:', !!watchlistContent);
+                    
+                    if (watchlistContent) {
+                        const watchlistItems = watchlistContent.querySelectorAll('.watchlist-list > div');
+                        console.log('Number of watchlist items found:', watchlistItems.length);
+                        watchlistItems.forEach((item, index) => {
+                            console.log(`Watchlist item ${index + 1}:`, item.dataset);
+                        });
+                    }
                     
                     // Reinitialize necessary functions and event listeners
+                    console.log('Initializing favorites page...');
                     initializeFavoritesPage();
                     
                     // Reinitialize any necessary scripts
@@ -505,6 +556,88 @@ function showToast(message, type = 'success') {
     }, 3000);
 }
 
+// Add to watchlist
+async function addToWatchlist(event, brandName, domainName, extension) {
+    event.preventDefault();
+    
+    const authToken = localStorage.getItem('authToken');
+    if (!authToken) {
+        const loginModal = new bootstrap.Modal(document.getElementById('loginModal'));
+        loginModal.show();
+        return;
+    }
+    
+    // Clean the domain name by removing the extension if it's present
+    const cleanDomainName = domainName.replace(`.${extension}`, '');
+    
+    try {
+        const response = await fetch('/watchlist', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${authToken}`
+            },
+            body: JSON.stringify({
+                domain_name: cleanDomainName,
+                domain_extension: extension
+            })
+        });
+
+        if (response.ok) {
+            showToast('Added to watchlist!');
+            const button = event.target.closest('.watchlist-btn');
+            button.classList.add('btn-info');
+            button.disabled = true;
+            button.innerHTML = '<i class="bi bi-eye-fill"></i>';
+        } else if (response.status === 401) {
+            localStorage.removeItem('authToken');
+            localStorage.removeItem('username');
+            const loginModal = new bootstrap.Modal(document.getElementById('loginModal'));
+            loginModal.show();
+        } else {
+            const data = await response.json();
+            showToast(data.detail || 'Failed to add to watchlist', 'error');
+        }
+    } catch (error) {
+        console.error('Error adding to watchlist:', error);
+        showToast('Failed to add to watchlist', 'error');
+    }
+}
+
+// Remove from watchlist
+async function removeFromWatchlist(watchlistId) {
+    try {
+        const response = await fetch(`/watchlist/${watchlistId}`, {
+            method: 'DELETE',
+            headers: {
+                'Authorization': `Bearer ${authToken}`,
+            }
+        });
+        
+        if (response.ok) {
+            // Remove the watchlist item from the DOM
+            const watchlistElement = document.querySelector(`[data-watchlist-id="${watchlistId}"]`);
+            if (watchlistElement) {
+                watchlistElement.remove();
+            }
+            showToast('Domain removed from watchlist');
+            
+            // Update the watchlist count
+            const countElement = document.getElementById('watchlistCount');
+            if (countElement) {
+                const currentCount = parseInt(countElement.textContent) - 1;
+                countElement.textContent = currentCount;
+            }
+        } else {
+            showToast('Failed to remove domain from watchlist', 'error');
+        }
+    } catch (error) {
+        console.error('Error removing from watchlist:', error);
+        showToast('Failed to remove from watchlist', 'error');
+    }
+}
+
+// Update the createDomainCard function to include watchlist button for taken domains
 function createDomainCard(brandName, ext, info) {
     console.log(`Creating domain card for ${brandName}.${ext}:`, info);
     
@@ -567,7 +700,14 @@ function createDomainCard(brandName, ext, info) {
                     <span class="heart-icon">♥</span>
                 </button>
             </div>
-        ` : ''}
+        ` : `
+            <div class="mt-2">
+                <button class="btn btn-sm btn-outline-secondary w-100 watchlist-btn"
+                        onclick="addToWatchlist(event, '${brandName}', '${brandName}.${ext}', '${ext}')">
+                    <i class="bi bi-eye"></i> Add to Watchlist
+                </button>
+            </div>
+        `}
     `;
     
     return domainCard;
@@ -575,63 +715,98 @@ function createDomainCard(brandName, ext, info) {
 
 // Function to initialize the favorites page
 function initializeFavoritesPage() {
-    // Define the deleteFavorite function
-    window.deleteFavorite = async function(favoriteId) {
+    console.log('Initializing favorites page...');
+    
+    // Check for watchlist elements
+    const watchlistTab = document.getElementById('watchlist-tab');
+    const watchlistContent = document.getElementById('watchlist');
+    console.log('Found watchlist tab:', !!watchlistTab);
+    console.log('Found watchlist content:', !!watchlistContent);
+    
+    if (watchlistContent) {
+        const watchlistItems = watchlistContent.querySelectorAll('.watchlist-list > div');
+        console.log('Found watchlist items:', watchlistItems.length);
+    }
+
+    // Define removeFromWatchlist function
+    window.removeFromWatchlist = async function(id) {
+        console.log('Removing watchlist item:', id);
         try {
-            const response = await fetch(`/favorites/${favoriteId}`, {
+            const response = await fetch(`/watchlist/${id}`, {
                 method: 'DELETE',
                 headers: {
-                    'Authorization': `Bearer ${authToken}`,
+                    'Authorization': `Bearer ${localStorage.getItem('authToken')}`
                 }
             });
-            
+
+            console.log('Remove watchlist response:', response.status);
             if (response.ok) {
-                // Remove the favorite item from the DOM
-                const favoriteElement = document.querySelector(`[data-favorite-id="${favoriteId}"]`);
-                if (favoriteElement) {
-                    favoriteElement.remove();
+                // Remove the watchlist item from the UI
+                const watchlistItem = document.querySelector(`[data-watchlist-id="${id}"]`);
+                console.log('Found watchlist item to remove:', !!watchlistItem);
+                if (watchlistItem) {
+                    watchlistItem.remove();
                 }
-                showToast('Favorite removed successfully');
-                
-                // Update the favorites count
-                const countElement = document.getElementById('favoritesCount');
-                if (countElement) {
-                    const currentCount = parseInt(countElement.textContent) - 1;
-                    countElement.textContent = currentCount;
+                // Update the watchlist count
+                const watchlistCount = document.getElementById('watchlistCount');
+                if (watchlistCount) {
+                    const currentCount = parseInt(watchlistCount.textContent);
+                    watchlistCount.textContent = currentCount - 1;
+                    console.log('Updated watchlist count to:', currentCount - 1);
                 }
+                showToast('Domain removed from watchlist successfully', 'success');
             } else {
-                showToast('Failed to remove favorite', 'error');
+                showToast('Failed to remove domain from watchlist', 'error');
             }
         } catch (error) {
-            console.error('Error removing favorite:', error);
-            showToast('Failed to remove favorite', 'error');
+            console.error('Error removing from watchlist:', error);
+            showToast('Failed to remove domain from watchlist', 'error');
         }
     };
 
-    // Add sorting functionality
-    const sortButtons = document.querySelectorAll('[data-sort]');
-    sortButtons.forEach(button => {
-        button.addEventListener('click', function() {
-            const sortBy = this.getAttribute('data-sort');
-            const favoritesContainer = document.querySelector('.favorites-list');
-            const favorites = Array.from(favoritesContainer.children);
+    // Add sorting functionality for watchlist
+    const watchlistSortButtons = document.querySelectorAll('#watchlist .btn-group button[data-sort]');
+    console.log('Found watchlist sort buttons:', watchlistSortButtons.length);
+    watchlistSortButtons.forEach(button => {
+        button.addEventListener('click', () => {
+            const sortBy = button.getAttribute('data-sort');
+            console.log('Sorting watchlist by:', sortBy);
+            const watchlistItems = Array.from(document.querySelectorAll('.watchlist-list > div'));
+            console.log('Items to sort:', watchlistItems.length);
             
-            favorites.sort((a, b) => {
-                const aValue = a.getAttribute(`data-${sortBy}`);
-                const bValue = b.getAttribute(`data-${sortBy}`);
-                
-                if (sortBy === 'date') {
-                    return new Date(bValue) - new Date(aValue);
-                } else if (sortBy === 'score') {
-                    return parseInt(bValue) - parseInt(aValue);
-                } else {
-                    return aValue.localeCompare(bValue);
-                }
+            watchlistItems.sort((a, b) => {
+                const aValue = a.getAttribute(`data-${sortBy}`).toLowerCase();
+                const bValue = b.getAttribute(`data-${sortBy}`).toLowerCase();
+                console.log(`Comparing ${aValue} with ${bValue}`);
+                return aValue.localeCompare(bValue);
             });
             
-            favorites.forEach(favorite => favoritesContainer.appendChild(favorite));
+            const watchlistContainer = document.querySelector('.watchlist-list');
+            watchlistItems.forEach(item => watchlistContainer.appendChild(item));
+            console.log('Sorting complete');
         });
     });
+
+    // Add sorting functionality for favorites
+    const favoriteSortButtons = document.querySelectorAll('#favorites .btn-group button[data-sort]');
+    console.log('Found favorites sort buttons:', favoriteSortButtons.length);
+    favoriteSortButtons.forEach(button => {
+        button.addEventListener('click', () => {
+            const sortBy = button.getAttribute('data-sort');
+            const favoriteItems = Array.from(document.querySelectorAll('.favorites-list > div'));
+            
+            favoriteItems.sort((a, b) => {
+                const aValue = a.getAttribute(`data-${sortBy}`).toLowerCase();
+                const bValue = b.getAttribute(`data-${sortBy}`).toLowerCase();
+                return aValue.localeCompare(bValue);
+            });
+            
+            const favoritesContainer = document.querySelector('.favorites-list');
+            favoriteItems.forEach(item => favoritesContainer.appendChild(item));
+        });
+    });
+    
+    console.log('Favorites page initialization complete');
 }
 
 // Initialize auth UI on page load

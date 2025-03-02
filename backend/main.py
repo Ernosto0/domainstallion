@@ -15,7 +15,7 @@ import logging
 os.environ["OAUTHLIB_INSECURE_TRANSPORT"] = "1"
 
 from .database import engine, get_db
-from .models import Base, User, Favorite
+from .models import Base, User, Favorite, WatchlistItem as WatchlistItemModel
 from .auth import (
     authenticate_user,
     create_access_token,
@@ -25,6 +25,7 @@ from .auth import (
 )
 from .google_auth import router as google_auth_router
 from backend.services.brand_generator import BrandGenerator
+from backend.schemas import WatchlistItemCreate, WatchlistItem
 
 # Create database tables
 Base.metadata.create_all(bind=engine)
@@ -215,107 +216,70 @@ async def get_favorites(
     db: Session = Depends(get_db),
 ):
     try:
-        print(
-            f"Processing favorites request for user: {current_user.username if current_user else 'None'}"
+        print(f"Processing favorites request for user: {current_user.username}")
+
+        # Get user's favorites
+        favorites = db.query(Favorite).filter(Favorite.user_id == current_user.id).all()
+        print(f"Found {len(favorites)} favorites")
+
+        # Get user's watchlist with debug info
+        watchlist = (
+            db.query(WatchlistItemModel)
+            .filter(WatchlistItemModel.user_id == current_user.id)
+            .all()
         )
-        print(f"Request headers: {dict(request.headers)}")
+        print(f"Found {len(watchlist)} watchlist items")
 
-        # Check if user is authenticated
-        if not current_user:
-            print("No authenticated user found")
-            # Check if this is an AJAX request
-            is_ajax = request.headers.get("X-Requested-With") == "XMLHttpRequest"
-            if is_ajax:
-                raise HTTPException(
-                    status_code=status.HTTP_401_UNAUTHORIZED,
-                    detail="Authentication required",
-                )
-            else:
-                print("Redirecting to home page")
-                return RedirectResponse(url="/", status_code=302)
-
-        print(f"User authenticated: {current_user.username}")
-
-        # Query favorites
-        try:
-            favorites = (
-                db.query(Favorite).filter(Favorite.user_id == current_user.id).all()
-            )
-            print(f"Found {len(favorites)} favorites for user {current_user.username}")
-
-            # Debug print each favorite
-            for fav in favorites:
-                print(
-                    f"Favorite ID: {fav.id}, Domain: {fav.domain_name}, Created: {fav.created_at}"
-                )
-
-        except Exception as db_error:
-            print(f"Database error: {str(db_error)}")
-            print(f"Database error type: {type(db_error)}")
-            import traceback
-
-            print(f"Traceback: {traceback.format_exc()}")
-            raise HTTPException(
-                status_code=500, detail=f"Database error: {str(db_error)}"
+        # Debug print each watchlist item
+        for item in watchlist:
+            print(
+                f"Watchlist item: {item.domain_name}.{item.domain_extension} (ID: {item.id}, Status: {item.status})"
             )
 
-        # Format the dates for each favorite
+        # Format dates for both favorites and watchlist
         for favorite in favorites:
-            try:
-                favorite.formatted_date = (
-                    favorite.created_at.strftime("%Y-%m-%d %H:%M:%S")
-                    if favorite.created_at
-                    else ""
-                )
-                print(
-                    f"Formatted date for favorite {favorite.id}: {favorite.formatted_date}"
-                )
-            except Exception as date_error:
-                print(
-                    f"Error formatting date for favorite {favorite.id}: {str(date_error)}"
-                )
-                print(f"Date error type: {type(date_error)}")
-                print(f"Traceback: {traceback.format_exc()}")
-                favorite.formatted_date = ""
+            favorite.formatted_date = favorite.created_at.strftime("%Y-%m-%d %H:%M")
 
-        # Render template
-        try:
-            print("Attempting to render favorites template")
+        for item in watchlist:
+            item.formatted_date = item.created_at.strftime("%Y-%m-%d %H:%M")
+            item.last_checked_date = item.last_checked.strftime("%Y-%m-%d %H:%M")
+            print(
+                f"Formatted dates for {item.domain_name}: Created: {item.formatted_date}, Last checked: {item.last_checked_date}"
+            )
+
+        # Debug print template context
+        template_context = {
+            "request": request,
+            "current_user": current_user,
+            "favorites": favorites,
+            "watchlist": watchlist,
+        }
+        print(f"Template context - watchlist length: {len(watchlist)}")
+
+        # Check if it's an AJAX request
+        if request.headers.get("X-Requested-With") == "XMLHttpRequest":
             response = templates.TemplateResponse(
                 "favorites.html",
-                {
-                    "request": request,
-                    "favorites": favorites,
-                    "current_user": current_user,
-                    "title": "My Favorites - Brand Generator",
-                },
+                template_context,
             )
-            print("Successfully rendered favorites template")
+            print("Rendered AJAX response")
             return response
-        except Exception as template_error:
-            print(f"Template error: {str(template_error)}")
-            print(f"Template error type: {type(template_error)}")
-            print(f"Traceback: {traceback.format_exc()}")
-            raise HTTPException(
-                status_code=500, detail=f"Template error: {str(template_error)}"
+        else:
+            response = templates.TemplateResponse(
+                "favorites.html",
+                template_context,
             )
-
-    except HTTPException as http_error:
-        print(f"HTTP Exception: {str(http_error)}")
-        raise http_error
+            print("Rendered full page response")
+            return response
     except Exception as e:
-        print(f"Unexpected error in get_favorites: {str(e)}")
+        print(f"Error in get_favorites: {str(e)}")
         print(f"Error type: {type(e)}")
+        import traceback
+
         print(f"Traceback: {traceback.format_exc()}")
-        return templates.TemplateResponse(
-            "index.html",
-            {
-                "request": request,
-                "title": "Brand Name Generator",
-                "error": f"An unexpected error occurred: {str(e)}",
-            },
-            status_code=500,
-        )
+        if request.headers.get("X-Requested-With") == "XMLHttpRequest":
+            raise HTTPException(status_code=500, detail=str(e))
+        return RedirectResponse(url="/")
 
 
 @app.delete("/favorites/{favorite_id}")
@@ -365,3 +329,62 @@ async def generate_names(request: BrandRequest):
 @app.get("/user/profile")
 async def get_user_profile(current_user: User = Depends(get_current_user)):
     return {"username": current_user.username, "email": current_user.email}
+
+
+@app.post("/watchlist", response_model=WatchlistItem)
+async def add_to_watchlist(
+    watchlist_item: WatchlistItemCreate,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    # Check if domain is already in user's watchlist
+    existing_item = (
+        db.query(WatchlistItemModel)
+        .filter(
+            WatchlistItemModel.user_id == current_user.id,
+            WatchlistItemModel.domain_name == watchlist_item.domain_name,
+            WatchlistItemModel.domain_extension == watchlist_item.domain_extension,
+        )
+        .first()
+    )
+
+    if existing_item:
+        raise HTTPException(
+            status_code=400, detail="Domain is already in your watchlist"
+        )
+
+    db_item = WatchlistItemModel(
+        user_id=current_user.id,
+        domain_name=watchlist_item.domain_name,
+        domain_extension=watchlist_item.domain_extension,
+        status="taken",
+        notify_when_available=True,
+    )
+
+    db.add(db_item)
+    db.commit()
+    db.refresh(db_item)
+    return db_item
+
+
+@app.delete("/watchlist/{watchlist_id}")
+async def remove_from_watchlist(
+    watchlist_id: int,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    watchlist_item = (
+        db.query(WatchlistItemModel)
+        .filter(
+            WatchlistItemModel.id == watchlist_id,
+            WatchlistItemModel.user_id == current_user.id,
+        )
+        .first()
+    )
+
+    if not watchlist_item:
+        raise HTTPException(status_code=404, detail="Watchlist item not found")
+
+    db.delete(watchlist_item)
+    db.commit()
+    return {"message": "Domain removed from watchlist"}

@@ -1,10 +1,19 @@
-from sqlalchemy import Column, Integer, String, Boolean, ForeignKey, Table, DateTime
-from sqlalchemy.orm import relationship, declarative_base
+from sqlalchemy import (
+    Column,
+    Integer,
+    String,
+    Boolean,
+    ForeignKey,
+    Table,
+    DateTime,
+    Float,
+)
+from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 from passlib.context import CryptContext
 from datetime import datetime
+from .database import Base
 
-Base = declarative_base()
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 
@@ -19,6 +28,7 @@ class User(Base):
     google_user_id = Column(String, unique=True, nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     favorites = relationship("Favorite", back_populates="user")
+    watchlist = relationship("WatchlistItem", back_populates="user")
 
     def verify_password(self, password: str) -> bool:
         # For Google users, we'll skip password verification
@@ -36,12 +46,26 @@ class Favorite(Base):
     domain_name = Column(String)
     domain_extension = Column(String)
     price = Column(String)
-    total_score = Column(Integer)  # Store the total score
-    length_score = Column(Integer)  # Store individual scores
-    dictionary_score = Column(Integer)
-    pronounceability_score = Column(Integer)
-    repetition_score = Column(Integer)
-    tld_score = Column(Integer)
+    total_score = Column(Integer, default=0)
+    length_score = Column(Integer, default=0)
+    dictionary_score = Column(Integer, default=0)
+    pronounceability_score = Column(Integer, default=0)
+    repetition_score = Column(Integer, default=0)
+    tld_score = Column(Integer, default=0)
     created_at = Column(DateTime, default=datetime.utcnow)
 
     user = relationship("User", back_populates="favorites")
+
+
+class WatchlistItem(Base):
+    __tablename__ = "watchlist"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"))
+    domain_name = Column(String)
+    domain_extension = Column(String)
+    status = Column(String, default="taken")  # "taken" or "available"
+    created_at = Column(DateTime, default=datetime.utcnow)
+    last_checked = Column(DateTime, default=datetime.utcnow)
+    notify_when_available = Column(Boolean, default=True)
+    user = relationship("User", back_populates="watchlist")

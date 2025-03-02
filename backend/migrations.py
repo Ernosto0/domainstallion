@@ -6,58 +6,52 @@ def migrate():
     # Create engine
     engine = create_engine(SQLALCHEMY_DATABASE_URL)
 
-    # Add missing columns
     with engine.connect() as conn:
         try:
-            # Check if columns exist first
+            # Create watchlist table
             conn.execute(
                 text(
                     """
-                ALTER TABLE favorites 
-                ADD COLUMN total_score INTEGER DEFAULT 0;
-            """
+                CREATE TABLE IF NOT EXISTS watchlist (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    user_id INTEGER NOT NULL,
+                    domain_name TEXT NOT NULL,
+                    domain_extension TEXT NOT NULL,
+                    status TEXT DEFAULT 'taken',
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    last_checked TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    notify_when_available BOOLEAN DEFAULT TRUE,
+                    FOREIGN KEY (user_id) REFERENCES users (id)
+                );
+                """
                 )
             )
-            conn.execute(
-                text(
-                    """
-                ALTER TABLE favorites 
-                ADD COLUMN length_score INTEGER DEFAULT 0;
-            """
-                )
-            )
-            conn.execute(
-                text(
-                    """
-                ALTER TABLE favorites 
-                ADD COLUMN dictionary_score INTEGER DEFAULT 0;
-            """
-                )
-            )
-            conn.execute(
-                text(
-                    """
-                ALTER TABLE favorites 
-                ADD COLUMN pronounceability_score INTEGER DEFAULT 0;
-            """
-                )
-            )
-            conn.execute(
-                text(
-                    """
-                ALTER TABLE favorites 
-                ADD COLUMN repetition_score INTEGER DEFAULT 0;
-            """
-                )
-            )
-            conn.execute(
-                text(
-                    """
-                ALTER TABLE favorites 
-                ADD COLUMN tld_score INTEGER DEFAULT 0;
-            """
-                )
-            )
+
+            # Check if columns exist in favorites table
+            result = conn.execute(text("PRAGMA table_info(favorites);"))
+            existing_columns = [row[1] for row in result.fetchall()]
+
+            # Add columns only if they don't exist
+            columns_to_add = {
+                "total_score": "INTEGER DEFAULT 0",
+                "length_score": "INTEGER DEFAULT 0",
+                "dictionary_score": "INTEGER DEFAULT 0",
+                "pronounceability_score": "INTEGER DEFAULT 0",
+                "repetition_score": "INTEGER DEFAULT 0",
+                "tld_score": "INTEGER DEFAULT 0",
+            }
+
+            for column_name, column_type in columns_to_add.items():
+                if column_name not in existing_columns:
+                    conn.execute(
+                        text(
+                            f"""
+                        ALTER TABLE favorites 
+                        ADD COLUMN {column_name} {column_type};
+                        """
+                        )
+                    )
+
             conn.commit()
             print("Migration completed successfully")
         except Exception as e:
