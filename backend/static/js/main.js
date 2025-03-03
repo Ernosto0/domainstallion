@@ -164,40 +164,64 @@ document.addEventListener('DOMContentLoaded', function() {
                     // Create brand card header
                     const brandCard = `
                         <div class="brand-card">
-                            <div class="d-flex justify-content-between align-items-start mb-3">
-                                <h3 class="h4 mb-0">${brand.name}</h3>
+                            <div class="d-flex justify-content-between align-items-center mb-3">
+                                <div class="d-flex align-items-center gap-3">
+                                    <h3 class="h4 mb-0">${brand.name}.com</h3>
+                                    <div class="score-circle-main" style="--score-value: ${brand.domains.com?.score?.total_score || 0}">
+                                        <div class="score-circle-inner">
+                                            <span class="score-value">${brand.domains.com?.score?.total_score || 0}</span>
+                                        </div>
+                                    </div>
+                                </div>
                                 <span class="badge bg-secondary">#${index + 1}</span>
                             </div>
+                            ${brand.domains.com ? `
+                            <div class="domain-score mb-3">
+                                <div class="score-details">
+                                    ${Object.entries(brand.domains.com.score.details).map(([key, detail]) => `
+                                        <div class="score-item d-flex align-items-center mb-1">
+                                            <div class="score-bar-container flex-grow-1">
+                                                <div class="score-bar" style="width: ${detail.score}%"></div>
+                                            </div>
+                                            <small class="ms-2">${key.charAt(0).toUpperCase() + key.slice(1)}</small>
+                                            <div class="score-tooltip">${detail.description}</div>
+                                        </div>
+                                    `).join('')}
+                                </div>
+                            </div>
+                            ` : ''}
                             <div class="domains-container"></div>
                         </div>
                     `;
                     brandCardContainer.innerHTML = brandCard;
                     
                     // Get domain entries
-                    const allDomainEntries = Object.entries(brand.domains || {});
+                    const allDomainEntries = Object.entries(brand.domains || {})
+                        .sort(([ext1], [ext2]) => ext2 === 'com' ? 1 : ext1 === 'com' ? -1 : 0); // Move .com to end
                     console.log('Domain entries:', allDomainEntries);
                     
                     // Get the domains container
                     const domainsContainer = brandCardContainer.querySelector('.domains-container');
                     
-                    // Process first 3 domains
-                    allDomainEntries.slice(0, 3).forEach(([ext, info]) => {
-                        const domainCard = createDomainCard(brand.name, ext, info);
+                    // Process first 3 domains (excluding .com since it's in the header)
+                    const nonComDomains = allDomainEntries.filter(([ext]) => ext !== 'com');
+                    nonComDomains.slice(0, 3).forEach(([ext, info]) => {
+                        const domainCard = createDomainCard(brand.name, ext, info, false);
                         domainsContainer.appendChild(domainCard);
                     });
                     
                     // Create container for remaining domains
-                    if (allDomainEntries.length > 3) {
+                    if (nonComDomains.length > 3) {
                         const remainingContainer = document.createElement('div');
                         remainingContainer.className = 'remaining-domains';
                         remainingContainer.style.display = 'none';
                         
                         // Process remaining domains
-                        allDomainEntries.slice(3).forEach(([ext, info]) => {
-                            const domainCard = createDomainCard(brand.name, ext, info);
+                        nonComDomains.slice(3).forEach(([ext, info]) => {
+                            const domainCard = createDomainCard(brand.name, ext, info, false);
                             remainingContainer.appendChild(domainCard);
                         });
-                        
+
                         domainsContainer.appendChild(remainingContainer);
                         
                         // Add toggle button
@@ -378,6 +402,112 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Call this when the page loads
     addAuthHeadersToXHR();
+
+    // Add CSS for the main score circle and update small circle
+    const style = document.createElement('style');
+    style.textContent = `
+        .score-circle-main {
+            width: 42px;
+            height: 42px;
+            position: relative;
+            background: conic-gradient(
+                #198754 calc(var(--score-value) * 1%),
+                #e9ecef calc(var(--score-value) * 1%)
+            );
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .score-circle-main .score-circle-inner {
+            width: 34px;
+            height: 34px;
+            background: white;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .score-circle-main .score-value {
+            font-size: 16px;
+            font-weight: bold;
+            color: #198754;
+        }
+
+        .score-circle-small {
+            width: 28px;
+            height: 28px;
+            position: relative;
+            background: conic-gradient(
+                #6c757d calc(var(--score-value) * 1%),
+                #e9ecef calc(var(--score-value) * 1%)
+            );
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .score-circle-small .score-circle-inner {
+            width: 20px;
+            height: 20px;
+            background: white;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .score-circle-small .score-value {
+            font-size: 10px;
+            font-weight: bold;
+            color: #6c757d;
+        }
+
+        .score-details {
+            background: #f8f9fa;
+            padding: 1rem;
+            border-radius: 0.5rem;
+        }
+
+        .score-item {
+            margin-bottom: 0.5rem;
+        }
+
+        .score-bar-container {
+            height: 8px;
+            background: #e9ecef;
+            border-radius: 4px;
+            overflow: hidden;
+            margin-right: 1rem;
+        }
+
+        .score-bar {
+            height: 100%;
+            background: #198754;
+            border-radius: 4px;
+            transition: width 0.3s ease;
+        }
+
+        .score-tooltip {
+            display: none;
+            position: absolute;
+            background: #343a40;
+            color: white;
+            padding: 0.5rem;
+            border-radius: 0.25rem;
+            font-size: 0.875rem;
+            z-index: 1000;
+            max-width: 200px;
+        }
+
+        .score-item:hover .score-tooltip {
+            display: block;
+        }
+    `;
+    document.head.appendChild(style);
 });
 
 // Update UI based on auth state
@@ -437,18 +567,46 @@ document.getElementById('loginForm').addEventListener('submit', async (e) => {
             // Show success message
             showToast('Successfully logged in', 'success');
             
-            // If there was a pending action (like adding to watchlist), retry it
-            const pendingAction = localStorage.getItem('pendingAction');
-            if (pendingAction) {
-                try {
-                    const action = JSON.parse(pendingAction);
-                    if (action.type === 'addToWatchlist') {
-                        addToWatchlist(new Event('click'), action.brandName, action.extension);
+            // Restore previous results if they exist
+            const pendingResults = localStorage.getItem('pendingResults');
+            if (pendingResults) {
+                const resultsContainer = document.querySelector('.results-container');
+                if (resultsContainer) {
+                    resultsContainer.style.display = 'block';
+                    resultsContainer.innerHTML = pendingResults;
+                    
+                    // Reinitialize any necessary components
+                    document.querySelectorAll('.score-circle').forEach(circle => {
+                        const scoreValue = circle.querySelector('.score-value').textContent;
+                        circle.style.setProperty('--score-value', scoreValue);
+                    });
+                    
+                    // Clear stored results
+                    localStorage.removeItem('pendingResults');
+                }
+                
+                // Check for pending favorite action
+                const pendingAction = localStorage.getItem('pendingFavoriteAction');
+                if (pendingAction) {
+                    try {
+                        const action = JSON.parse(pendingAction);
+                        if (action.type === 'addToFavorites') {
+                            // Slight delay to ensure everything is initialized
+                            setTimeout(() => {
+                                addToFavorites(
+                                    new Event('click'),
+                                    action.brandName,
+                                    action.domainName,
+                                    action.extension,
+                                    action.price
+                                );
+                            }, 500);
+                        }
+                    } catch (e) {
+                        console.error('Error retrying pending favorite action:', e);
+                    } finally {
+                        localStorage.removeItem('pendingFavoriteAction');
                     }
-                } catch (e) {
-                    console.error('Error retrying pending action:', e);
-                } finally {
-                    localStorage.removeItem('pendingAction');
                 }
             }
         } else {
@@ -546,6 +704,20 @@ async function addToFavorites(event, brandName, domainName, extension, price) {
     
     const authToken = localStorage.getItem('authToken');
     if (!authToken) {
+        // Store the current results before showing login modal
+        const resultsContainer = document.querySelector('.results-container');
+        if (resultsContainer) {
+            localStorage.setItem('pendingResults', resultsContainer.innerHTML);
+            localStorage.setItem('pendingFavoriteAction', JSON.stringify({
+                type: 'addToFavorites',
+                brandName,
+                domainName,
+                extension,
+                price
+            }));
+        }
+        
+        showToast('Please log in to add domains to favorites', 'warning');
         const loginModal = new bootstrap.Modal(document.getElementById('loginModal'));
         loginModal.show();
         return;
@@ -610,13 +782,13 @@ async function addToFavorites(event, brandName, domainName, extension, price) {
         });
 
         if (response.ok) {
-            showToast('Added to favorites!');
+            showToast('Added to favorites!', 'success');
             const button = event.target.closest('.favorite-btn');
             button.classList.add('btn-success');
             button.disabled = true;
             button.innerHTML = '<span class="heart-icon">♥</span>';
         } else if (response.status === 401) {
-            // If unauthorized, show login modal
+            showToast('Your session has expired. Please log in again.', 'warning');
             localStorage.removeItem('authToken');
             localStorage.removeItem('username');
             const loginModal = new bootstrap.Modal(document.getElementById('loginModal'));
@@ -650,6 +822,7 @@ async function addToWatchlist(event, brandName, domainName, extension) {
     
     const authToken = localStorage.getItem('authToken');
     if (!authToken) {
+        showToast('Please log in to add domains to watchlist', 'warning');
         const loginModal = new bootstrap.Modal(document.getElementById('loginModal'));
         loginModal.show();
         return;
@@ -672,12 +845,13 @@ async function addToWatchlist(event, brandName, domainName, extension) {
         });
 
         if (response.ok) {
-            showToast('Added to watchlist!');
+            showToast('Added to watchlist!', 'success');
             const button = event.target.closest('.watchlist-btn');
             button.classList.add('btn-info');
             button.disabled = true;
             button.innerHTML = '<i class="bi bi-eye-fill"></i>';
         } else if (response.status === 401) {
+            showToast('Your session has expired. Please log in again.', 'warning');
             localStorage.removeItem('authToken');
             localStorage.removeItem('username');
             const loginModal = new bootstrap.Modal(document.getElementById('loginModal'));
@@ -725,8 +899,8 @@ async function removeFromWatchlist(watchlistId) {
     }
 }
 
-// Update the createDomainCard function to include watchlist button for taken domains
-function createDomainCard(brandName, ext, info) {
+// Update the createDomainCard function to remove detailed scores
+function createDomainCard(brandName, ext, info, isFirstVariant = true) {
     console.log(`Creating domain card for ${brandName}.${ext}:`, info);
     
     const domainCard = document.createElement('div');
@@ -747,34 +921,18 @@ function createDomainCard(brandName, ext, info) {
         }
     };
     
-    console.log('Score object:', score);
-    
+    // Create the base HTML structure
     domainCard.innerHTML = `
         <div class="d-flex justify-content-between align-items-center">
-            <div>
+            <div class="d-flex align-items-center gap-2">
                 <span class="domain-name h5 mb-0">${brandName}.${ext}</span>
-            </div>
-            <span class="domain-badge ${statusClass}">${statusText}</span>
-        </div>
-        <div class="domain-score mt-3">
-            <div class="score-circle-container d-flex justify-content-center align-items-center mb-3">
-                <div class="score-circle" style="--score-value: ${score.total_score}">
+                <div class="score-circle-small" style="--score-value: ${score.total_score}">
                     <div class="score-circle-inner">
                         <span class="score-value">${score.total_score}</span>
                     </div>
                 </div>
             </div>
-            <div class="score-details">
-                ${Object.entries(score.details).map(([key, detail]) => `
-                    <div class="score-item d-flex align-items-center mb-1">
-                        <div class="score-bar-container flex-grow-1">
-                            <div class="score-bar" style="width: ${detail.score}%"></div>
-                        </div>
-                        <small class="ms-2">${key.charAt(0).toUpperCase() + key.slice(1)}</small>
-                        <div class="score-tooltip">${detail.description}</div>
-                    </div>
-                `).join('')}
-            </div>
+            <span class="domain-badge ${statusClass}">${statusText}</span>
         </div>
         ${info.available ? `
             <div class="mt-2 d-flex gap-2">

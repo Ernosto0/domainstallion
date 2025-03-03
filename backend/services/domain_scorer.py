@@ -1,6 +1,6 @@
 import re
-import nltk
-from nltk.corpus import words
+import nltk # type: ignore
+from nltk.corpus import words # type: ignore
 import os
 
 # Download required NLTK data
