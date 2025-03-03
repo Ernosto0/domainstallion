@@ -123,38 +123,46 @@ document.addEventListener('DOMContentLoaded', function() {
     if (form) {
         form.addEventListener('submit', async function(e) {
             e.preventDefault();
-            
-            // Show loading spinner
+            const keywords = document.getElementById('keywordInput').value.trim();
+            const style = document.getElementById('styleSelect').value;
+            const resultsDiv = document.getElementById('results');
+            const resultsContainer = document.querySelector('.results-container');
+            const loading = document.getElementById('loading');
+
+            if (!keywords) {
+                alert('Please enter keywords');
+                return;
+            }
+
             loading.style.display = 'block';
             resultsContainer.style.display = 'none';
-            
-            const keywords = document.getElementById('keywordInput').value;
-            const numSuggestions = 20;
-            
+            resultsDiv.innerHTML = '';
+
             try {
                 const response = await fetch('/api/generate', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
                     },
-                    body: JSON.stringify({ 
-                        keywords,
-                        num_suggestions: numSuggestions
-                    }),
+                    body: JSON.stringify({
+                        keywords: keywords,
+                        style: style,
+                        num_suggestions: 20
+                    })
                 });
-                
+
                 if (!response.ok) {
                     throw new Error('Network response was not ok');
                 }
-                
-                const brands = await response.json();
-                console.log('Raw API Response:', brands);
+
+                const data = await response.json();
+                console.log('Raw API Response:', data);
                 
                 // Clear previous results
                 resultsDiv.innerHTML = '';
                 
                 // Process each brand
-                brands.forEach((brand, index) => {
+                data.forEach((brand, index) => {
                     console.log(`Processing brand ${index + 1}:`, brand);
                     
                     // Create brand card container

@@ -183,15 +183,40 @@ class BrandGenerator:
             logger.error(f"Error in GoDaddy API call: {str(e)}")
             return {"available": False, "price": None, "error": str(e)}
 
-    async def generate_names(self, keywords, num_suggestions=20):
+    async def generate_names(self, keywords, style="neutral", num_suggestions=20):
+        """
+        Generate brand names based on keywords and desired style.
+
+        Args:
+            keywords (str): Keywords to base the brand names on
+            style (str): Desired style - 'short', 'playful', 'serious', or 'techy'
+            num_suggestions (int): Number of suggestions to generate
+        """
+        # Style-specific guidelines
+        style_guidelines = {
+            "short": "Names should be concise, preferably 3-6 characters.",
+            "playful": "Names should be fun, memorable, and potentially use wordplay or rhyming.",
+            "serious": "Names should be professional, trustworthy, and business-oriented.",
+            "techy": "Names should sound innovative, modern, and tech-savvy, potentially using tech-related suffixes.",
+        }
+
+        # Get style-specific guidelines or use neutral if style not specified
+        style_guide = style_guidelines.get(
+            style.lower(), "Names should be balanced and versatile."
+        )
+        logger.debug(f"Style guide: {style_guide}")
+
         prompt = f"""Generate {num_suggestions} unique and creative brand names based on these keywords: {keywords}.
+        Style requirement: {style_guide}
+        
         Rules:
         1. Names should be between 3-15 characters
         2. Should be easy to pronounce
         3. Can include real words or made-up words
         4. Can include double letters for style (like Google)
         5. Return only the names, one per line
-        6. Do not include numbers or dots in the names"""
+        6. Do not include numbers or dots in the names
+        7. Ensure names match the requested style: {style}"""
 
         try:
             logger.debug("Starting OpenAI API call")

@@ -133,6 +133,10 @@ class FavoriteCreate(BaseModel):
 
 class BrandRequest(BaseModel):
     keywords: str
+    style: str = Field(
+        default="neutral",
+        description="Style of brand names to generate: 'short', 'playful', 'serious', 'techy', or 'neutral'",
+    )
     num_suggestions: int = Field(
         default=20, ge=5, le=50
     )  # Between 5 and 50 suggestions
@@ -321,8 +325,13 @@ async def generate_names(request: BrandRequest):
     if not request.keywords:
         raise HTTPException(status_code=400, detail="Keywords are required")
 
+    if request.style not in ["short", "playful", "serious", "techy", "neutral"]:
+        raise HTTPException(status_code=400, detail="Invalid style specified")
+
     generator = BrandGenerator()
-    results = await generator.generate_names(request.keywords, request.num_suggestions)
+    results = await generator.generate_names(
+        request.keywords, request.style, request.num_suggestions
+    )
 
     if not results:
         raise HTTPException(status_code=500, detail="Failed to generate brand names")
