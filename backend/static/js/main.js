@@ -120,17 +120,72 @@ document.addEventListener('DOMContentLoaded', function() {
     const searchContainer = document.querySelector('.search-container');
     const viewFavoritesBtn = document.getElementById('viewFavorites');
 
+    // Advanced options toggle
+    const advancedOptionsToggle = document.getElementById('advancedOptionsToggle');
+    const advancedOptions = document.getElementById('advancedOptions');
+    
+    // Initialize range slider
+    const lengthSlider = document.getElementById('lengthSlider');
+    if (lengthSlider) {
+        noUiSlider.create(lengthSlider, {
+            start: [3, 15],
+            connect: true,
+            step: 1,
+            range: {
+                'min': 3,
+                'max': 15
+            },
+            format: {
+                to: value => Math.round(value),
+                from: value => Math.round(value)
+            },
+            tooltips: [true, true]
+        });
+
+        // Update the display values
+        const minLengthValue = document.getElementById('minLengthValue');
+        const maxLengthValue = document.getElementById('maxLengthValue');
+        
+        lengthSlider.noUiSlider.on('update', function(values, handle) {
+            if (handle === 0) {
+                minLengthValue.textContent = values[0];
+            } else {
+                maxLengthValue.textContent = values[1];
+            }
+        });
+    }
+    
+    if (advancedOptionsToggle) {
+        advancedOptionsToggle.addEventListener('click', function() {
+            const isHidden = advancedOptions.style.display === 'none';
+            advancedOptions.style.display = isHidden ? 'block' : 'none';
+            this.innerHTML = isHidden ? 
+                '<i class="bi bi-gear-fill"></i> Hide Advanced Options' : 
+                '<i class="bi bi-gear"></i> Advanced Options';
+            
+            // Add animation class
+            if (isHidden) {
+                advancedOptions.classList.add('fade-in');
+            }
+        });
+    }
+
     if (form) {
         form.addEventListener('submit', async function(e) {
             e.preventDefault();
             const keywords = document.getElementById('keywordInput').value.trim();
             const style = document.getElementById('styleSelect').value;
-            const resultsDiv = document.getElementById('results');
-            const resultsContainer = document.querySelector('.results-container');
-            const loading = document.getElementById('loading');
+            const [minLength, maxLength] = lengthSlider.noUiSlider.get();
+            const includeWord = document.getElementById('includeWord').value.trim();
+            
+            // Validate length values
+            if (parseInt(minLength) > parseInt(maxLength)) {
+                showToast('Minimum length cannot be greater than maximum length', 'error');
+                return;
+            }
 
             if (!keywords) {
-                alert('Please enter keywords');
+                showToast('Please enter keywords', 'error');
                 return;
             }
 
@@ -143,34 +198,27 @@ document.addEventListener('DOMContentLoaded', function() {
             // Show loading indicator
             loading.style.display = 'block';
             
-            // If generating more, append loading indicator to results
-            if (e.target.hasAttribute('data-generating-more')) {
-                const loadingIndicator = document.createElement('div');
-                loadingIndicator.id = 'moreLoading';
-                loadingIndicator.className = 'text-center mt-4';
-                loadingIndicator.innerHTML = '<div class="spinner-border text-primary" role="status"><span class="visually-hidden">Loading...</span></div>';
-                resultsContainer.appendChild(loadingIndicator);
-                
-                // Disable the Generate More button while loading
-                const generateMoreBtn = document.getElementById('generateMoreBtn');
-                if (generateMoreBtn) {
-                    generateMoreBtn.disabled = true;
-                    generateMoreBtn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Generating...';
-                }
-            }
-
             try {
+                const requestBody = {
+                    keywords: keywords,
+                    style: style,
+                    num_suggestions: 20,
+                    exclude_names: Array.from(document.querySelectorAll('.brand-card h3')).map(h => h.textContent.split('.')[0]),
+                    min_length: parseInt(minLength),
+                    max_length: parseInt(maxLength)
+                };
+
+                // Only add include_word if it's not empty
+                if (includeWord) {
+                    requestBody.include_word = includeWord;
+                }
+
                 const response = await fetch('/api/generate', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
                     },
-                    body: JSON.stringify({
-                        keywords: keywords,
-                        style: style,
-                        num_suggestions: 20,
-                        exclude_names: Array.from(document.querySelectorAll('.brand-card h3')).map(h => h.textContent.split('.')[0])
-                    })
+                    body: JSON.stringify(requestBody)
                 });
 
                 if (!response.ok) {

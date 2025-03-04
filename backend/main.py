@@ -141,6 +141,9 @@ class BrandRequest(BaseModel):
         default=20, ge=5, le=50
     )  # Between 5 and 50 suggestions
     exclude_names: List[str] = Field(default_factory=list)  # List of names to exclude
+    min_length: int = Field(default=3, ge=3, le=15)  # Minimum name length
+    max_length: int = Field(default=15, ge=3, le=15)  # Maximum name length
+    include_word: Optional[str] = None  # Optional word to include in generated names
 
 
 class DomainInfo(BaseModel):
@@ -323,38 +326,59 @@ async def home(request: Request):
 
 @app.post("/api/generate", response_model=List[BrandResponse])
 async def generate_names(request: BrandRequest):
+    logger = logging.getLogger(__name__)
+    logger.debug(f"Received generate request with keywords: {request.keywords}")
+
     if not request.keywords:
         raise HTTPException(status_code=400, detail="Keywords are required")
 
     if request.style not in ["short", "playful", "serious", "techy", "neutral"]:
         raise HTTPException(status_code=400, detail="Invalid style specified")
 
-    generator = BrandGenerator()
+    if request.min_length > request.max_length:
+        raise HTTPException(
+            status_code=400,
+            detail="Minimum length cannot be greater than maximum length",
+        )
 
-    # Generate more names than requested to account for exclusions
-    extra_suggestions = len(request.exclude_names)
-    total_suggestions = request.num_suggestions + extra_suggestions
+    try:
+        generator = BrandGenerator()
+        logger.debug("BrandGenerator initialized")
 
-    results = await generator.generate_names(
-        request.keywords, request.style, total_suggestions
-    )
+        # Generate more names than requested to account for exclusions
+        extra_suggestions = len(request.exclude_names)
+        total_suggestions = request.num_suggestions + extra_suggestions
 
-    if not results:
-        raise HTTPException(status_code=500, detail="Failed to generate brand names")
+        logger.debug(f"Generating {total_suggestions} names...")
+        results = await generator.generate_names(
+            request.keywords,
+            request.style,
+            total_suggestions,
+            min_length=request.min_length,
+            max_length=request.max_length,
+            include_word=request.include_word,
+        )
+        logger.debug(f"Generated {len(results)} names")
 
-    # Filter out excluded names
-    filtered_results = [
-        result
-        for result in results
-        if result["name"].lower()
-        not in [name.lower() for name in request.exclude_names]
-    ][: request.num_suggestions]
+        if not results:
+            logger.error("No results returned from generator")
+            raise HTTPException(
+                status_code=500, detail="Failed to generate brand names"
+            )
 
-    # Log the response data before returning
-    logger = logging.getLogger(__name__)
-    logger.debug(f"API Response Data: {filtered_results}")
+        # Filter out excluded names
+        filtered_results = [
+            result
+            for result in results
+            if result["name"].lower()
+            not in [name.lower() for name in request.exclude_names]
+        ][: request.num_suggestions]
 
-    return filtered_results
+        logger.debug(f"Returning {len(filtered_results)} filtered results")
+        return filtered_results
+    except Exception as e:
+        logger.error(f"Error in generate_names: {str(e)}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Error generating names: {str(e)}")
 
 
 @app.get("/user/profile")

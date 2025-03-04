@@ -183,7 +183,15 @@ class BrandGenerator:
             logger.error(f"Error in GoDaddy API call: {str(e)}")
             return {"available": False, "price": None, "error": str(e)}
 
-    async def generate_names(self, keywords, style="neutral", num_suggestions=20):
+    async def generate_names(
+        self,
+        keywords,
+        style="neutral",
+        num_suggestions=20,
+        min_length=3,
+        max_length=15,
+        include_word=None,
+    ):
         """
         Generate brand names based on keywords and desired style.
 
@@ -191,6 +199,9 @@ class BrandGenerator:
             keywords (str): Keywords to base the brand names on
             style (str): Desired style - 'short', 'playful', 'serious', or 'techy'
             num_suggestions (int): Number of suggestions to generate
+            min_length (int): Minimum length for generated names (default: 3)
+            max_length (int): Maximum length for generated names (default: 15)
+            include_word (str, optional): A specific word to include in the generated names
         """
         # Style-specific guidelines
         style_guidelines = {
@@ -206,20 +217,43 @@ class BrandGenerator:
         )
         logger.debug(f"Style guide: {style_guide}")
 
-        prompt = f"""Generate {num_suggestions} unique and creative brand names based on these keywords: {keywords}.
+        
+        # Build the word inclusion part of the prompt
+        word_inclusion_prefix = (
+            f"\nIMPORTANT: Each generated name MUST include the word '{include_word}'. The word should be incorporated naturally into the name, either as a prefix, suffix, or part of a compound word."
+            if include_word
+            else ""
+        )
+
+        word_inclusion = (
+            f"8. Must include the word '{include_word}' in each name (can be part of a larger word)"
+            if include_word
+            else ""
+        )
+
+        prompt = f"""{word_inclusion_prefix}Generate {num_suggestions} unique and creative brand names based on these keywords: {keywords}.
         Style requirement: {style_guide}
         
         Rules:
-        1. Names should be between 3-15 characters
+        1. Names MUST be between {min_length}-{max_length} characters
         2. Should be easy to pronounce
         3. Can include real words or made-up words
         4. Can include double letters for style (like Google)
         5. Return only the names, one per line
         6. Do not include numbers or dots in the names
-        7. Ensure names match the requested style: {style}"""
+        7. Ensure names match the requested style: {style}
+        {word_inclusion}
+        
+        Example format:
+        BrandName1
+        BrandName2
+        (just the names, one per line)"""
 
         try:
             logger.debug("Starting OpenAI API call")
+            logger.debug(
+                f"Using parameters - min_length: {min_length}, max_length: {max_length}, include_word: {include_word}"
+            )
             response = self.client.chat.completions.create(
                 model="gpt-3.5-turbo",
                 messages=[{"role": "user", "content": prompt}],
@@ -232,20 +266,55 @@ class BrandGenerator:
 
             # Clean up brand names
             brand_names = []
-            for line in response.choices[0].message.content.strip().split("\n"):
-                # Remove numbered list format (e.g., "1. StayCheck" -> "StayCheck")
-                if "." in line:
-                    parts = line.split(".", 1)  # Split on first period only
+            raw_lines = response.choices[0].message.content.strip().split("\n")
+            logger.debug(f"Processing {len(raw_lines)} raw lines")
+
+            for line in raw_lines:
+                # Remove leading/trailing whitespace
+                name = line.strip()
+                logger.debug(f"Processing line: '{line}' -> '{name}'")
+
+                # Remove numbered list format if present
+                if ". " in name:
+                    parts = name.split(". ", 1)
                     if len(parts) == 2 and parts[0].strip().isdigit():
                         name = parts[1].strip()
-                        if name and not any(c.isdigit() for c in name):
-                            brand_names.append(name)
-                else:
-                    name = line.strip()
-                    if name and not any(c.isdigit() for c in name):
-                        brand_names.append(name)
+                        logger.debug(f"Removed numbering: '{line}' -> '{name}'")
 
-            logger.debug(f"Cleaned brand names: {brand_names}")
+                # Skip empty lines
+                if not name:
+                    logger.debug("Skipping empty line")
+                    continue
+
+                # Skip if name contains numbers
+                if any(c.isdigit() for c in name):
+                    logger.debug(f"Skipping name with numbers: {name}")
+                    continue
+
+                # Validate length constraints
+                if not (min_length <= len(name) <= max_length):
+                    logger.debug(
+                        f"Skipping name due to length: {name} (length: {len(name)})"
+                    )
+                    continue
+
+                # Only validate word inclusion if a word is specified and it's not empty
+                if (
+                    include_word
+                    and include_word.strip()
+                    and include_word.lower().strip() not in name.lower()
+                ):
+                    logger.debug(
+                        f"Skipping name missing required word '{include_word}': {name}"
+                    )
+                    continue
+
+                logger.debug(f"Adding valid name: {name}")
+                brand_names.append(name)
+
+            logger.debug(
+                f"Final cleaned brand names ({len(brand_names)}): {brand_names}"
+            )
 
             if not brand_names:
                 logger.error("No valid brand names generated")
