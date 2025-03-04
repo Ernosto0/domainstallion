@@ -140,6 +140,7 @@ class BrandRequest(BaseModel):
     num_suggestions: int = Field(
         default=20, ge=5, le=50
     )  # Between 5 and 50 suggestions
+    exclude_names: List[str] = Field(default_factory=list)  # List of names to exclude
 
 
 class DomainInfo(BaseModel):
@@ -329,18 +330,31 @@ async def generate_names(request: BrandRequest):
         raise HTTPException(status_code=400, detail="Invalid style specified")
 
     generator = BrandGenerator()
+
+    # Generate more names than requested to account for exclusions
+    extra_suggestions = len(request.exclude_names)
+    total_suggestions = request.num_suggestions + extra_suggestions
+
     results = await generator.generate_names(
-        request.keywords, request.style, request.num_suggestions
+        request.keywords, request.style, total_suggestions
     )
 
     if not results:
         raise HTTPException(status_code=500, detail="Failed to generate brand names")
 
+    # Filter out excluded names
+    filtered_results = [
+        result
+        for result in results
+        if result["name"].lower()
+        not in [name.lower() for name in request.exclude_names]
+    ][: request.num_suggestions]
+
     # Log the response data before returning
     logger = logging.getLogger(__name__)
-    logger.debug(f"API Response Data: {results}")
+    logger.debug(f"API Response Data: {filtered_results}")
 
-    return results
+    return filtered_results
 
 
 @app.get("/user/profile")

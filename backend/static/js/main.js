@@ -134,9 +134,30 @@ document.addEventListener('DOMContentLoaded', function() {
                 return;
             }
 
+            // Only hide results container if it's a new search
+            if (!e.target.hasAttribute('data-generating-more')) {
+                resultsContainer.style.display = 'none';
+                resultsDiv.innerHTML = '';
+            }
+
+            // Show loading indicator
             loading.style.display = 'block';
-            resultsContainer.style.display = 'none';
-            resultsDiv.innerHTML = '';
+            
+            // If generating more, append loading indicator to results
+            if (e.target.hasAttribute('data-generating-more')) {
+                const loadingIndicator = document.createElement('div');
+                loadingIndicator.id = 'moreLoading';
+                loadingIndicator.className = 'text-center mt-4';
+                loadingIndicator.innerHTML = '<div class="spinner-border text-primary" role="status"><span class="visually-hidden">Loading...</span></div>';
+                resultsContainer.appendChild(loadingIndicator);
+                
+                // Disable the Generate More button while loading
+                const generateMoreBtn = document.getElementById('generateMoreBtn');
+                if (generateMoreBtn) {
+                    generateMoreBtn.disabled = true;
+                    generateMoreBtn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Generating...';
+                }
+            }
 
             try {
                 const response = await fetch('/api/generate', {
@@ -147,7 +168,8 @@ document.addEventListener('DOMContentLoaded', function() {
                     body: JSON.stringify({
                         keywords: keywords,
                         style: style,
-                        num_suggestions: 20
+                        num_suggestions: 20,
+                        exclude_names: Array.from(document.querySelectorAll('.brand-card h3')).map(h => h.textContent.split('.')[0])
                     })
                 });
 
@@ -157,9 +179,12 @@ document.addEventListener('DOMContentLoaded', function() {
 
                 const data = await response.json();
                 console.log('Raw API Response:', data);
-                
-                // Clear previous results
-                resultsDiv.innerHTML = '';
+
+                // Remove the additional loading indicator if it exists
+                const moreLoading = document.getElementById('moreLoading');
+                if (moreLoading) {
+                    moreLoading.remove();
+                }
                 
                 // Process each brand
                 data.forEach((brand, index) => {
@@ -181,7 +206,12 @@ document.addEventListener('DOMContentLoaded', function() {
                                         </div>
                                     </div>
                                 </div>
-                                <span class="badge bg-secondary">#${index + 1}</span>
+                                <div class="d-flex align-items-center gap-2">
+                                    <span class="domain-badge ${brand.domains.com?.available ? 'domain-available' : 'domain-unavailable'}">
+                                        ${brand.domains.com?.available ? `Available - ${brand.domains.com?.price}` : 'Taken'}
+                                    </span>
+                                    <span class="badge bg-secondary">#${document.querySelectorAll('.brand-card').length + index + 1}</span>
+                                </div>
                             </div>
                             ${brand.domains.com ? `
                             <div class="domain-score mb-3">
@@ -197,6 +227,26 @@ document.addEventListener('DOMContentLoaded', function() {
                                     `).join('')}
                                 </div>
                             </div>
+                            ${brand.domains.com.available ? `
+                                <div class="d-flex gap-2 mb-3">
+                                    <a href="https://domains.google.com/registrar/search?searchTerm=${brand.name}.com" 
+                                       target="_blank" 
+                                       class="btn btn-sm btn-outline-primary flex-grow-1">
+                                        Register Domain
+                                    </a>
+                                    <button class="btn btn-sm btn-outline-success favorite-btn"
+                                            onclick="addToFavorites(event, '${brand.name}', '${brand.name}.com', 'com', '${brand.domains.com.price}')">
+                                        <span class="heart-icon">♥</span>
+                                    </button>
+                                </div>
+                            ` : `
+                                <div class="mb-3">
+                                    <button class="btn btn-sm btn-outline-secondary w-100 watchlist-btn"
+                                            onclick="addToWatchlist(event, '${brand.name}', 'com')">
+                                        <i class="bi bi-eye"></i> Add to Watchlist
+                                    </button>
+                                </div>
+                            `}
                             ` : ''}
                             <div class="domains-container"></div>
                         </div>
@@ -205,7 +255,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     
                     // Get domain entries
                     const allDomainEntries = Object.entries(brand.domains || {})
-                        .sort(([ext1], [ext2]) => ext2 === 'com' ? 1 : ext1 === 'com' ? -1 : 0); // Move .com to end
+                        .sort(([ext1], [ext2]) => ext2 === 'com' ? 1 : ext1 === 'com' ? -1 : 0);
                     console.log('Domain entries:', allDomainEntries);
                     
                     // Get the domains container
@@ -270,19 +320,69 @@ document.addEventListener('DOMContentLoaded', function() {
                 
                 // Show results
                 resultsContainer.style.display = 'block';
+
+                // Add the Generate More button only if this is not a "generating more" request
+                let generateMoreBtn = document.getElementById('generateMoreBtn');
+                if (!e.target.hasAttribute('data-generating-more')) {
+                    generateMoreBtn = document.createElement('button');
+                    generateMoreBtn.id = 'generateMoreBtn';
+                    generateMoreBtn.className = 'btn btn-primary mt-4 w-100';
+                    generateMoreBtn.innerHTML = 'Generate More Names';
+                    generateMoreBtn.onclick = function(event) {
+                        event.preventDefault();
+                        const submitEvent = new Event('submit');
+                        form.setAttribute('data-generating-more', 'true');
+                        form.dispatchEvent(submitEvent);
+                        // Remove the button after clicking
+                        event.target.remove();
+                    };
+                    resultsContainer.appendChild(generateMoreBtn);
+                } else {
+                    // If this was a "generate more" request, remove the button if it exists
+                    if (generateMoreBtn) {
+                        generateMoreBtn.remove();
+                    }
+                }
                 
-                // Scroll to results
-                resultsContainer.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                // Scroll to the new results if generating more
+                if (e.target.hasAttribute('data-generating-more')) {
+                    const newResults = Array.from(resultsDiv.children).slice(-data.length);
+                    if (newResults.length > 0) {
+                        newResults[0].scrollIntoView({ behavior: 'smooth', block: 'start' });
+                    }
+                } else {
+                    // Scroll to results container for new searches
+                    resultsContainer.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                }
                 
             } catch (error) {
                 console.error('Error:', error);
-                resultsDiv.innerHTML = `
-                    <div class="col-12 text-center">
-                        <div class="alert alert-danger">
-                            An error occurred while generating brand names. Please try again.
+                
+                // Remove the additional loading indicator if it exists
+                const moreLoading = document.getElementById('moreLoading');
+                if (moreLoading) {
+                    moreLoading.remove();
+                }
+
+                // Re-enable the Generate More button if it exists
+                const generateMoreBtn = document.getElementById('generateMoreBtn');
+                if (generateMoreBtn) {
+                    generateMoreBtn.disabled = false;
+                    generateMoreBtn.innerHTML = 'Generate More Names';
+                }
+
+                if (!e.target.hasAttribute('data-generating-more')) {
+                    resultsDiv.innerHTML = `
+                        <div class="col-12 text-center">
+                            <div class="alert alert-danger">
+                                An error occurred while generating brand names. Please try again.
+                            </div>
                         </div>
-                    </div>
-                `;
+                    `;
+                } else {
+                    // Show error toast for "Generate More" errors
+                    showToast('Failed to generate more names. Please try again.', 'error');
+                }
                 resultsContainer.style.display = 'block';
             } finally {
                 loading.style.display = 'none';
