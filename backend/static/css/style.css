@@ -682,3 +682,61 @@ main {
 .noUi-active .noUi-tooltip {
     display: block;
 }
+
+/* FAQ Section Styles */
+.faq-section {
+    background-color: #f8f9fa;
+    border-top: 1px solid #dee2e6;
+}
+
+.faq-section h2 {
+    color: #333;
+    font-weight: 600;
+    margin-bottom: 2rem;
+}
+
+.accordion-item {
+    border: none;
+    background: transparent;
+    margin-bottom: 1rem;
+}
+
+.accordion-button {
+    background-color: #fff;
+    border: none;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+    border-radius: 0.5rem !important;
+    padding: 1.25rem 1.5rem;
+    font-weight: 500;
+    color: #333;
+    transition: all 0.3s ease;
+}
+
+.accordion-button:not(.collapsed) {
+    background-color: #fff;
+    color: #0d6efd;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+.accordion-button:focus {
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    border-color: transparent;
+}
+
+.accordion-button::after {
+    transition: transform 0.3s ease;
+}
+
+.accordion-body {
+    background-color: #fff;
+    border-bottom-left-radius: 0.5rem;
+    border-bottom-right-radius: 0.5rem;
+    padding: 1.5rem;
+    color: #6c757d;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+}
+
+.accordion-button:hover {
+    background-color: #f8f9fa;
+    transform: translateY(-1px);
+}
