@@ -34,11 +34,21 @@ from .google_auth import router as google_auth_router
 from backend.services.brand_generator import BrandGenerator
 from backend.schemas import WatchlistItemCreate, WatchlistItem
 from .tasks import check_watchlist_domains
+from .rate_limiter import (
+    limiter,
+    _rate_limit_exceeded_handler,
+    rate_limit,
+    RateLimitExceeded,
+)
 
 # Create database tables
 Base.metadata.create_all(bind=engine)
 
 app = FastAPI(title="Brand Name Generator", version="1.0.0")
+
+# Add rate limiter to the application
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
 # Configure CORS
 app.add_middleware(
@@ -162,8 +172,11 @@ class BrandResponse(BaseModel):
 
 # Authentication endpoints
 @app.post("/token", response_model=Token)
+@rate_limit(calls=5, period=300)
 async def login(
-    form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(get_db)
+    request: Request, 
+    form_data: OAuth2PasswordRequestForm = Depends(),
+    db: Session = Depends(get_db),
 ):
     user = authenticate_user(db, form_data.username, form_data.password)
     if not user:
@@ -515,3 +528,45 @@ async def update_watchlist_notification(
 async def startup_event():
     # Start the background task
     asyncio.create_task(check_watchlist_domains())
+
+
+@app.get("/privacy", response_class=HTMLResponse)
+async def privacy_policy(request: Request):
+    return templates.TemplateResponse(
+        "privacy.html",
+        {"request": request, "title": "Privacy Policy - Brand Generator"},
+    )
+
+
+@app.get("/terms", response_class=HTMLResponse)
+async def terms_of_service(request: Request):
+    return templates.TemplateResponse(
+        "terms.html",
+        {"request": request, "title": "Terms of Service - Brand Generator"},
+    )
+
+
+# Example of applying rate limits to endpoints
+@app.post("/generate-domain")
+@rate_limit(calls=20, period=60)  # Strict rate limit: 20 requests per minute
+async def generate_domain(request: Request):
+    # Your existing code here
+    pass
+
+
+@app.get("/check-availability/{domain}")
+@rate_limit(calls=100, period=3600)  # Default rate limit: 100 requests per hour
+async def check_availability(request: Request, domain: str):
+    # Your existing code here
+    pass
+
+
+@app.get("/watchlist")
+@rate_limit(
+    calls=1000, period=3600, user_specific=True
+)  # Lenient rate limit: 1000 requests per hour, per user
+async def get_watchlist(
+    request: Request, current_user: User = Depends(get_current_user)
+):
+    # Your existing code here
+    pass
