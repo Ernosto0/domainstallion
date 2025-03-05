@@ -45,13 +45,6 @@
             <form id="brandForm">
                 <div class="input-group mb-3">
                     <input type="text" id="keywordInput" class="form-control" placeholder="Enter keywords (e.g., tech, creative, modern)" required>
-                    <select id="styleSelect" class="form-select" style="max-width: 200px;">
-                        <option value="neutral">Neutral Style</option>
-                        <option value="short">Short Names</option>
-                        <option value="playful">Playful Names</option>
-                        <option value="serious">Serious Names</option>
-                        <option value="techy">Tech-Focused Names</option>
-                    </select>
                     <button class="btn btn-primary" type="submit">Generate Names</button>
                 </div>
 
@@ -63,6 +56,16 @@
 
                 <div id="advancedOptions" class="card p-3 mb-3" style="display: none;">
                     <div class="row g-3">
+                        <div class="col-12">
+                            <label class="form-label">Name Style</label>
+                            <select id="styleSelect" class="form-select">
+                                <option value="neutral">Neutral Style</option>
+                                <option value="short">Short Names</option>
+                                <option value="playful">Playful Names</option>
+                                <option value="serious">Serious Names</option>
+                                <option value="techy">Tech-Focused Names</option>
+                            </select>
+                        </div>
                         <div class="col-12">
                             <label class="form-label">Name Length (3-15 characters)</label>
                             <div class="range-slider-container">
