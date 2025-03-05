@@ -174,7 +174,7 @@ class BrandResponse(BaseModel):
 @app.post("/token", response_model=Token)
 @rate_limit(calls=5, period=300)
 async def login(
-    request: Request, 
+    request: Request,
     form_data: OAuth2PasswordRequestForm = Depends(),
     db: Session = Depends(get_db),
 ):
