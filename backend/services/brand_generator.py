@@ -39,7 +39,7 @@ DOMAIN_EXTENSIONS = [
 ]
 
 # Chunk size for concurrent API calls
-CHUNK_SIZE = 4  # Adjust based on API rate limits
+CHUNK_SIZE = 6  # Adjust based on API rate limits
 
 if not api_key:
     raise ValueError("OPENAI_API_KEY not found in environment variables")

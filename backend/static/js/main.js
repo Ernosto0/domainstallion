@@ -261,6 +261,7 @@ document.addEventListener('DOMContentLoaded', function() {
                                     <span class="badge bg-secondary">#${document.querySelectorAll('.brand-card').length + index + 1}</span>
                                 </div>
                             </div>
+                            <div class="trademark-result"></div>
                             ${brand.domains.com ? `
                             <div class="domain-score mb-3">
                                 <div class="score-details">
@@ -277,21 +278,31 @@ document.addEventListener('DOMContentLoaded', function() {
                             </div>
                             ${brand.domains.com.available ? `
                                 <div class="d-flex gap-2 mb-3">
-                                    <a href="https://domains.google.com/registrar/search?searchTerm=${brand.name}.com" 
-                                       target="_blank" 
-                                       class="btn btn-sm btn-outline-primary flex-grow-1">
-                                        Register Domain
-                                    </a>
+                                    <div class="d-flex gap-2 flex-grow-1">
+                                        <a href="https://domains.google.com/registrar/search?searchTerm=${brand.name}.com" 
+                                           target="_blank" 
+                                           class="btn btn-sm btn-outline-primary flex-grow-1">
+                                            <i class="bi bi-cart"></i> Register Domain
+                                        </a>
+                                        <button class="btn btn-sm btn-outline-dark flex-grow-1"
+                                                onclick="checkTrademark(event, '${brand.name}')">
+                                            <i class="bi bi-bank"></i> Check Trademark
+                                        </button>
+                                    </div>
                                     <button class="btn btn-sm btn-outline-success favorite-btn"
                                             onclick="addToFavorites(event, '${brand.name}', '${brand.name}.com', 'com', '${brand.domains.com.price}')">
                                         <span class="heart-icon">♥</span>
                                     </button>
                                 </div>
                             ` : `
-                                <div class="mb-3">
-                                    <button class="btn btn-sm btn-outline-secondary w-100 watchlist-btn"
+                                <div class="d-flex gap-2 mb-3">
+                                    <button class="btn btn-sm btn-outline-secondary flex-grow-1"
                                             onclick="addToWatchlist(event, '${brand.name}', 'com')">
                                         <i class="bi bi-eye"></i> Add to Watchlist
+                                    </button>
+                                    <button class="btn btn-sm btn-outline-dark flex-grow-1"
+                                            onclick="checkTrademark(event, '${brand.name}')">
+                                        <i class="bi bi-bank"></i> Check Trademark
                                     </button>
                                 </div>
                             `}
@@ -559,111 +570,7 @@ document.addEventListener('DOMContentLoaded', function() {
     // Call this when the page loads
     addAuthHeadersToXHR();
 
-    // Add CSS for the main score circle and update small circle
-    const style = document.createElement('style');
-    style.textContent = `
-        .score-circle-main {
-            width: 42px;
-            height: 42px;
-            position: relative;
-            background: conic-gradient(
-                #198754 calc(var(--score-value) * 1%),
-                #e9ecef calc(var(--score-value) * 1%)
-            );
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-        
-        .score-circle-main .score-circle-inner {
-            width: 34px;
-            height: 34px;
-            background: white;
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-        
-        .score-circle-main .score-value {
-            font-size: 16px;
-            font-weight: bold;
-            color: #198754;
-        }
-
-        .score-circle-small {
-            width: 28px;
-            height: 28px;
-            position: relative;
-            background: conic-gradient(
-                #6c757d calc(var(--score-value) * 1%),
-                #e9ecef calc(var(--score-value) * 1%)
-            );
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-        
-        .score-circle-small .score-circle-inner {
-            width: 20px;
-            height: 20px;
-            background: white;
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-        
-        .score-circle-small .score-value {
-            font-size: 10px;
-            font-weight: bold;
-            color: #6c757d;
-        }
-
-        .score-details {
-            background: #f8f9fa;
-            padding: 1rem;
-            border-radius: 0.5rem;
-        }
-
-        .score-item {
-            margin-bottom: 0.5rem;
-        }
-
-        .score-bar-container {
-            height: 8px;
-            background: #e9ecef;
-            border-radius: 4px;
-            overflow: hidden;
-            margin-right: 1rem;
-        }
-
-        .score-bar {
-            height: 100%;
-            background: #198754;
-            border-radius: 4px;
-            transition: width 0.3s ease;
-        }
-
-        .score-tooltip {
-            display: none;
-            position: absolute;
-            background: #343a40;
-            color: white;
-            padding: 0.5rem;
-            border-radius: 0.25rem;
-            font-size: 0.875rem;
-            z-index: 1000;
-            max-width: 200px;
-        }
-
-        .score-item:hover .score-tooltip {
-            display: block;
-        }
-    `;
-    document.head.appendChild(style);
+    
 });
 
 // Update UI based on auth state

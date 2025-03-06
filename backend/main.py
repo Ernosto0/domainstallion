@@ -32,6 +32,7 @@ from .auth import (
 )
 from .google_auth import router as google_auth_router
 from backend.services.brand_generator import BrandGenerator
+from backend.services.trademark_checker import check_trademark
 from backend.schemas import WatchlistItemCreate, WatchlistItem
 from .tasks import check_watchlist_domains
 from .rate_limiter import (
@@ -67,7 +68,7 @@ templates = Jinja2Templates(directory="backend/templates")
 
 
 # Add debug middleware
-@app.middleware("http")
+@app.middleware("http") # Change to https when deploy
 async def debug_middleware(request: Request, call_next):
     print(f"Incoming request: {request.method} {request.url.path}")
 
@@ -251,7 +252,7 @@ async def get_favorites(
         favorites = db.query(Favorite).filter(Favorite.user_id == current_user.id).all()
         print(f"Found {len(favorites)} favorites")
 
-        # Get user's watchlist with debug info
+        # Get user's watchlist 
         watchlist = (
             db.query(WatchlistItemModel)
             .filter(WatchlistItemModel.user_id == current_user.id)
@@ -570,3 +571,13 @@ async def get_watchlist(
 ):
     # Your existing code here
     pass
+
+
+@app.get("/check-trademark/{domain}")
+@rate_limit(calls=50, period=3600)  # 50 requests per hour due to USPTO API limits
+async def check_trademark_endpoint(request: Request, domain: str):
+    try:
+        result = await check_trademark(domain)
+        return result
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
