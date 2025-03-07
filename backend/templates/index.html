@@ -7,13 +7,13 @@
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.8.1/font/bootstrap-icons.css" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/nouislider@14.6.3/distribute/nouislider.min.css" rel="stylesheet">
-    <link href="{{ url_for('static', path='/css/style.css') }}" rel="stylesheet">
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link href="{{ url_for('static', path='/css/modern-style.css') }}" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
 </head>
 <body>
-    <nav class="navbar navbar-expand-lg navbar-light bg-light">
+    <nav class="navbar navbar-expand-lg navbar-light">
         <div class="container">
-            <a class="navbar-brand" href="/">Brand Generator</a>
+            <a class="navbar-brand" href="/">Domain Generator</a>
             <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
                 <span class="navbar-toggler-icon"></span>
             </button>
@@ -39,24 +39,24 @@
         </div>
     </nav>
 
-    <main class="container py-5">
-        <div class="search-container text-center mb-5">
-            <h1 class="display-4 mb-4">Brand Name Generator</h1>
-            <p class="lead mb-4">Generate unique and available domain names for your brand</p>
+    <main class="container">
+        <div class="search-container">
+            <h1 class="display-4">Find Your Perfect Domain Name</h1>
+            <p class="lead">Generate unique and available domain names for your brand or business</p>
             
             <form id="brandForm">
-                <div class="input-group mb-3">
+                <div class="input-group">
                     <input type="text" id="keywordInput" class="form-control" placeholder="Enter keywords (e.g., tech, creative, modern)" required>
-                    <button class="btn btn-primary" type="submit">Generate Names</button>
+                    <button class="btn btn-primary" type="submit"><i class="bi bi-search"></i> Generate Names</button>
                 </div>
 
                 <div class="text-center mb-3">
                     <button type="button" class="btn btn-link text-decoration-none" id="advancedOptionsToggle">
-                        <i class="bi bi-gear"></i> Advanced Options
+                        <i class="bi bi-sliders"></i> Advanced Options
                     </button>
                 </div>
 
-                <div id="advancedOptions" class="card p-3 mb-3" style="display: none;">
+                <div id="advancedOptions" class="card p-4 mb-3" style="display: none;">
                     <div class="row g-3">
                         <div class="col-12">
                             <label class="form-label">Name Style</label>
@@ -87,39 +87,40 @@
         </div>
 
         <div id="loading" class="text-center" style="display: none;">
-            <div class="spinner-border text-primary" role="status">
+            <div class="spinner-border" role="status">
                 <span class="visually-hidden">Loading...</span>
             </div>
+            <p class="mt-3 text-muted">Generating domain suggestions...</p>
         </div>
 
         <div class="results-container" style="display: none;">
-            <h2 class="mb-4">Generated Brand Names</h2>
+            <h2>Generated Brand Names</h2>
             <div id="results" class="row"></div>
         </div>
 
         <div class="favorites-container d-none">
-            <h2 class="mb-4">My Favorites</h2>
+            <h2>My Favorites</h2>
             <div id="favorites" class="row"></div>
         </div>
     </main>
 
     <!-- FAQ Section -->
-    <section class="faq-section py-5 bg-light">
+    <section class="faq-section py-5">
         <div class="container">
-            <h2 class="text-center mb-5">Frequently Asked Questions</h2>
-            <div class="row justify-content-center">
+            <h2 class="text-center">Frequently Asked Questions</h2>
+            <div class="row justify-content-center mt-5">
                 <!-- First Column -->
                 <div class="col-lg-6">
                     <!-- FAQ Item 1 -->
                     <div class="accordion-item mb-4">
                         <h3 class="accordion-header" id="faqHeading1">
                             <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#faqCollapse1" aria-expanded="false" aria-controls="faqCollapse1">
-                                Question 1
+                                How does the domain name generator work?
                             </button>
                         </h3>
                         <div id="faqCollapse1" class="accordion-collapse collapse" aria-labelledby="faqHeading1">
                             <div class="accordion-body">
-                                Answer 1
+                                Our domain name generator uses advanced AI algorithms to create unique and relevant domain suggestions based on your keywords. It checks domain availability in real-time and provides a score for each suggestion based on factors like memorability, length, and pronounceability.
                             </div>
                         </div>
                     </div>
@@ -128,12 +129,12 @@
                     <div class="accordion-item mb-4">
                         <h3 class="accordion-header" id="faqHeading2">
                             <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#faqCollapse2" aria-expanded="false" aria-controls="faqCollapse2">
-                                Question 2
+                                What does the domain score mean?
                             </button>
                         </h3>
                         <div id="faqCollapse2" class="accordion-collapse collapse" aria-labelledby="faqHeading2">
                             <div class="accordion-body">
-                                Answer 2
+                                The domain score is a rating from 0-100 that evaluates how good a domain name is based on several factors including length, pronounceability, memorability, and dictionary word usage. Higher scores indicate better domain names that are likely to be more effective for your brand.
                             </div>
                         </div>
                     </div>
@@ -142,12 +143,12 @@
                     <div class="accordion-item mb-4">
                         <h3 class="accordion-header" id="faqHeading3">
                             <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#faqCollapse3" aria-expanded="false" aria-controls="faqCollapse3">
-                                Question 3
+                                Can I register domains directly through this tool?
                             </button>
                         </h3>
                         <div id="faqCollapse3" class="accordion-collapse collapse" aria-labelledby="faqHeading3">
                             <div class="accordion-body">
-                                Answer 3
+                                While you can't register domains directly through our tool, we provide convenient links to popular domain registrars like GoDaddy, Namecheap, and others. Just click the "Register" button next to any available domain to be taken to the registrar's website with your domain pre-filled.
                             </div>
                         </div>
                     </div>
@@ -159,12 +160,12 @@
                     <div class="accordion-item mb-4">
                         <h3 class="accordion-header" id="faqHeading4">
                             <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#faqCollapse4" aria-expanded="false" aria-controls="faqCollapse4">
-                                Question 4
+                                What is the watchlist feature?
                             </button>
                         </h3>
                         <div id="faqCollapse4" class="accordion-collapse collapse" aria-labelledby="faqHeading4">
                             <div class="accordion-body">
-                                Answer 4
+                                The watchlist feature allows you to save domains that are currently unavailable but that you're interested in. You can set up alerts to be notified if these domains become available in the future, giving you the opportunity to register them quickly.
                             </div>
                         </div>
                     </div>
@@ -173,12 +174,12 @@
                     <div class="accordion-item mb-4">
                         <h3 class="accordion-header" id="faqHeading5">
                             <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#faqCollapse5" aria-expanded="false" aria-controls="faqCollapse5">
-                                Question 5
+                                How accurate is the domain availability check?
                             </button>
                         </h3>
                         <div id="faqCollapse5" class="accordion-collapse collapse" aria-labelledby="faqHeading5">
                             <div class="accordion-body">
-                                Answer 5
+                                Our domain availability check is performed in real-time using industry-standard APIs. While we strive for 100% accuracy, there can occasionally be a slight delay between when a domain is registered and when that information is reflected in our system. Always verify availability with the registrar before making a purchase.
                             </div>
                         </div>
                     </div>
@@ -187,12 +188,12 @@
                     <div class="accordion-item mb-4">
                         <h3 class="accordion-header" id="faqHeading6">
                             <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#faqCollapse6" aria-expanded="false" aria-controls="faqCollapse6">
-                                Question 6
+                                What does the trademark check do?
                             </button>
                         </h3>
                         <div id="faqCollapse6" class="accordion-collapse collapse" aria-labelledby="faqHeading6">
                             <div class="accordion-body">
-                                Answer 6
+                                The trademark check feature helps you identify potential trademark conflicts with your chosen domain name. It searches public trademark databases to see if your domain name might infringe on existing trademarks. This is an important step to avoid potential legal issues after registering your domain.
                             </div>
                         </div>
                     </div>
@@ -206,12 +207,12 @@
         <div class="container">
             <div class="footer-content">
                 <div class="footer-copyright">
-                    © 2024 Brand Generator. All rights reserved.
+                    © 2024 Domain Generator. All rights reserved.
                 </div>
                 <div class="footer-links">
                     <a href="/">Home</a>
                     <a href="https://github.com/yourusername/brand-generator" target="_blank">GitHub</a>
-                    <a href="mailto:support@brandgenerator.com">Contact</a>
+                    <a href="mailto:support@domaingenerator.com">Contact</a>
                     <a href="/privacy">Privacy Policy</a>
                     <a href="/terms">Terms of Service</a>
                 </div>
@@ -221,35 +222,54 @@
 
     <!-- Login Modal -->
     <div class="modal fade" id="loginModal" tabindex="-1">
-        <div class="modal-dialog">
+        <div class="modal-dialog modal-dialog-centered">
             <div class="modal-content">
-                <div class="modal-header">
-                    <h5 class="modal-title">Login</h5>
+                <div class="modal-header border-0 pb-0">
+                    <h4 class="modal-title fw-bold">Welcome Back</h4>
                     <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                 </div>
-                <div class="modal-body">
+                <div class="modal-body pt-2 px-4 pb-4">
+                    <p class="text-muted mb-4">Sign in to access your saved domains and watchlist</p>
                     <form id="loginForm">
-                        <div class="mb-3">
+                        <div class="mb-4">
                             <label for="loginUsername" class="form-label">Username</label>
-                            <input type="text" class="form-control" id="loginUsername" required>
+                            <div class="input-group">
+                                <span class="input-group-text bg-light border-end-0">
+                                    <i class="bi bi-person text-muted"></i>
+                                </span>
+                                <input type="text" class="form-control border-start-0 ps-0" id="loginUsername" placeholder="Enter your username" required>
+                            </div>
                         </div>
-                        <div class="mb-3">
-                            <label for="loginPassword" class="form-label">Password</label>
-                            <input type="password" class="form-control" id="loginPassword" required>
+                        <div class="mb-4">
+                            <div class="d-flex justify-content-between align-items-center mb-1">
+                                <label for="loginPassword" class="form-label mb-0">Password</label>
+                                <a href="#" class="text-decoration-none small">Forgot password?</a>
+                            </div>
+                            <div class="input-group">
+                                <span class="input-group-text bg-light border-end-0">
+                                    <i class="bi bi-lock text-muted"></i>
+                                </span>
+                                <input type="password" class="form-control border-start-0 ps-0" id="loginPassword" placeholder="Enter your password" required>
+                            </div>
                         </div>
-                        <div class="alert alert-danger d-none" id="loginError"></div>
-                        <button type="submit" class="btn btn-primary w-100">Login</button>
+                        <div class="alert alert-danger d-none rounded-3" id="loginError"></div>
+                        <div class="d-grid gap-2 mb-4">
+                            <button type="submit" class="btn btn-primary py-2 fw-semibold">Sign In</button>
+                        </div>
                     </form>
-                    <div class="text-center mt-3">
-                        <div class="divider d-flex align-items-center my-4">
-                            <span class="text-muted mx-3">OR</span>
+                    <div class="text-center">
+                        <div class="position-relative my-4">
+                            <hr>
+                            <span class="position-absolute top-50 start-50 translate-middle px-3 bg-white text-muted small">OR CONTINUE WITH</span>
                         </div>
-                        <a href="/auth/google/login" class="btn btn-outline-danger w-100">
-                            <img src="{{ url_for('static', path='css/images/google_logo.png') }}" alt="Google Logo" style="height: 20px; margin-right: 10px;">
-                            Sign in with Google
-                        </a>
-                        <p class="text-center mt-3 mb-0">
-                            Don't have an account? <a href="#" data-bs-toggle="modal" data-bs-target="#registerModal" data-bs-dismiss="modal">Register here</a>
+                        <div class="d-grid gap-2 mb-4">
+                            <a href="/auth/google/login" class="btn btn-outline-secondary py-2">
+                                <img src="{{ url_for('static', path='css/images/google_logo.png') }}" alt="Google Logo" style="height: 18px; margin-right: 10px;">
+                                Google
+                            </a>
+                        </div>
+                        <p class="text-center mb-0">
+                            Don't have an account? <a href="#" class="text-decoration-none fw-semibold" data-bs-toggle="modal" data-bs-target="#registerModal" data-bs-dismiss="modal">Sign up</a>
                         </p>
                     </div>
                 </div>
@@ -259,29 +279,65 @@
 
     <!-- Register Modal -->
     <div class="modal fade" id="registerModal" tabindex="-1">
-        <div class="modal-dialog">
+        <div class="modal-dialog modal-dialog-centered">
             <div class="modal-content">
-                <div class="modal-header">
-                    <h5 class="modal-title">Register</h5>
+                <div class="modal-header border-0 pb-0">
+                    <h4 class="modal-title fw-bold">Create Account</h4>
                     <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                 </div>
-                <div class="modal-body">
+                <div class="modal-body pt-2 px-4 pb-4">
+                    <p class="text-muted mb-4">Join to save your favorite domains and get alerts</p>
                     <form id="registerForm">
-                        <div class="mb-3">
+                        <div class="mb-4">
                             <label for="registerUsername" class="form-label">Username</label>
-                            <input type="text" class="form-control" id="registerUsername" required>
+                            <div class="input-group">
+                                <span class="input-group-text bg-light border-end-0">
+                                    <i class="bi bi-person text-muted"></i>
+                                </span>
+                                <input type="text" class="form-control border-start-0 ps-0" id="registerUsername" placeholder="Choose a username" required>
+                            </div>
                         </div>
-                        <div class="mb-3">
+                        <div class="mb-4">
                             <label for="registerEmail" class="form-label">Email</label>
-                            <input type="email" class="form-control" id="registerEmail" required>
+                            <div class="input-group">
+                                <span class="input-group-text bg-light border-end-0">
+                                    <i class="bi bi-envelope text-muted"></i>
+                                </span>
+                                <input type="email" class="form-control border-start-0 ps-0" id="registerEmail" placeholder="Enter your email" required>
+                            </div>
                         </div>
-                        <div class="mb-3">
+                        <div class="mb-4">
                             <label for="registerPassword" class="form-label">Password</label>
-                            <input type="password" class="form-control" id="registerPassword" required>
+                            <div class="input-group">
+                                <span class="input-group-text bg-light border-end-0">
+                                    <i class="bi bi-lock text-muted"></i>
+                                </span>
+                                <input type="password" class="form-control border-start-0 ps-0" id="registerPassword" placeholder="Create a password" required>
+                            </div>
+                            <div class="form-text mt-2">
+                                <i class="bi bi-info-circle me-1"></i> Password must be at least 8 characters
+                            </div>
                         </div>
-                        <div class="alert alert-danger d-none" id="registerError"></div>
-                        <button type="submit" class="btn btn-primary w-100">Register</button>
+                        <div class="alert alert-danger d-none rounded-3" id="registerError"></div>
+                        <div class="d-grid gap-2 mb-4">
+                            <button type="submit" class="btn btn-primary py-2 fw-semibold">Create Account</button>
+                        </div>
                     </form>
+                    <div class="text-center">
+                        <div class="position-relative my-4">
+                            <hr>
+                            <span class="position-absolute top-50 start-50 translate-middle px-3 bg-white text-muted small">OR SIGN UP WITH</span>
+                        </div>
+                        <div class="d-grid gap-2 mb-4">
+                            <a href="/auth/google/login" class="btn btn-outline-secondary py-2">
+                                <img src="{{ url_for('static', path='css/images/google_logo.png') }}" alt="Google Logo" style="height: 18px; margin-right: 10px;">
+                                Google
+                            </a>
+                        </div>
+                        <p class="text-center mb-0">
+                            Already have an account? <a href="#" class="text-decoration-none fw-semibold" data-bs-toggle="modal" data-bs-target="#loginModal" data-bs-dismiss="modal">Sign in</a>
+                        </p>
+                    </div>
                 </div>
             </div>
         </div>

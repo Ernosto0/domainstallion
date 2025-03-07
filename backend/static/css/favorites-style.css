@@ -1,0 +1,413 @@
+/* Favorites Page Modern Styling */
+:root {
+    --primary-color: #4361ee;
+    --primary-light: rgba(67, 97, 238, 0.1);
+    --secondary-color: #3a0ca3;
+    --accent-color: #f72585;
+    --success-color: #4cc9f0;
+    --warning-color: #f8961e;
+    --danger-color: #f94144;
+    --light-color: #f8f9fa;
+    --dark-color: #212529;
+    --gray-100: #f8f9fa;
+    --gray-200: #e9ecef;
+    --gray-300: #dee2e6;
+    --gray-400: #ced4da;
+    --gray-500: #adb5bd;
+    --gray-600: #6c757d;
+    --gray-700: #495057;
+    --gray-800: #343a40;
+    --gray-900: #212529;
+    --border-radius: 12px;
+    --box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+    --transition: all 0.25s ease-in-out;
+}
+
+/* Profile sidebar styling */
+.profile-sidebar .card {
+    border-radius: var(--border-radius);
+    border: none;
+    box-shadow: var(--box-shadow);
+    transition: var(--transition);
+    overflow: hidden;
+}
+
+.profile-sidebar .card-body {
+    padding: 2rem;
+}
+
+.profile-sidebar img.rounded-circle {
+    width: 120px;
+    height: 120px;
+    object-fit: cover;
+    border: 4px solid var(--gray-200);
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+    transition: var(--transition);
+}
+
+.profile-sidebar img.rounded-circle:hover {
+    transform: scale(1.05);
+    border-color: var(--primary-color);
+}
+
+.profile-sidebar h5.card-title {
+    font-weight: 700;
+    font-size: 1.25rem;
+    margin-top: 1rem;
+    color: var(--gray-900);
+}
+
+.profile-sidebar p.text-muted {
+    color: var(--gray-600) !important;
+}
+
+.profile-sidebar .mt-3 p {
+    margin-bottom: 0.5rem !important;
+    font-size: 0.95rem;
+}
+
+.profile-sidebar .mt-3 p strong {
+    color: var(--gray-800);
+}
+
+.profile-sidebar .mt-3 p span {
+    color: var(--primary-color);
+    font-weight: 600;
+}
+
+/* Main content card styling */
+.col-lg-9 .card {
+    border-radius: var(--border-radius);
+    border: none;
+    box-shadow: var(--box-shadow);
+    overflow: hidden;
+}
+
+/* Tab navigation styling */
+.card-header {
+    background-color: white;
+    border-bottom: 1px solid var(--gray-200);
+    padding: 1rem 1.5rem;
+}
+
+.nav-tabs {
+    border-bottom: none;
+}
+
+.nav-tabs .nav-item {
+    margin-right: 0.5rem;
+}
+
+.nav-tabs .nav-link {
+    border: none;
+    color: var(--gray-600);
+    font-weight: 600;
+    padding: 0.75rem 1.25rem;
+    border-radius: var(--border-radius);
+    transition: var(--transition);
+}
+
+.nav-tabs .nav-link:hover {
+    color: var(--primary-color);
+    background-color: var(--primary-light);
+}
+
+.nav-tabs .nav-link.active {
+    color: var(--primary-color);
+    background-color: var(--primary-light);
+    border: none;
+}
+
+/* Card body styling */
+.card-body {
+    padding: 2rem;
+}
+
+/* Sort buttons styling */
+.btn-group .btn-outline-secondary {
+    border-color: var(--gray-300);
+    color: var(--gray-700);
+    font-weight: 500;
+    font-size: 0.85rem;
+    padding: 0.4rem 0.75rem;
+}
+
+.btn-group .btn-outline-secondary:hover,
+.btn-group .btn-outline-secondary:focus {
+    background-color: var(--primary-color);
+    border-color: var(--primary-color);
+    color: white;
+}
+
+/* Domain card styling */
+.domain-card {
+    background: white;
+    border-radius: var(--border-radius);
+    padding: 1.5rem;
+    box-shadow: var(--box-shadow);
+    transition: var(--transition);
+    border: 1px solid var(--gray-200);
+    height: 100%;
+}
+
+.domain-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 8px 30px rgba(0, 0, 0, 0.12);
+    border-color: var(--primary-light);
+}
+
+.domain-card h5 {
+    font-weight: 700;
+    color: var(--gray-900);
+    font-size: 1.1rem;
+}
+
+.domain-card .badge {
+    font-weight: 600;
+    padding: 0.5rem 0.75rem;
+    border-radius: 6px;
+    font-size: 0.75rem;
+}
+
+/* Score circle styling */
+.score-circle-container {
+    margin: 1.5rem 0;
+}
+
+.score-circle {
+    width: 80px;
+    height: 80px;
+    border-radius: 50%;
+    background: conic-gradient(
+        var(--primary-color) calc(var(--score-value) * 1%),
+        var(--gray-200) 0
+    );
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.score-circle-inner {
+    width: 70px;
+    height: 70px;
+    border-radius: 50%;
+    background: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.score-value {
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: var(--gray-900);
+}
+
+/* Score bars styling */
+.score-details {
+    margin-bottom: 1.5rem;
+}
+
+.score-item {
+    margin-bottom: 0.75rem;
+}
+
+.score-bar-container {
+    height: 6px;
+    background-color: var(--gray-200);
+    border-radius: 3px;
+    overflow: hidden;
+}
+
+.score-bar {
+    height: 100%;
+    border-radius: 3px;
+}
+
+/* Score bar colors based on value */
+.score-bar[style*="width: 90%"],
+.score-bar[style*="width: 80%"],
+.score-bar[style*="width: 70%"],
+.score-bar[style*="width: 60%"] {
+    background: #4361ee;  /* Indigo for good scores */
+}
+
+.score-bar[style*="width: 50%"],
+.score-bar[style*="width: 40%"] {
+    background: #3a0ca3;  /* Purple for medium scores */
+}
+
+.score-bar[style*="width: 30%"],
+.score-bar[style*="width: 20%"] {
+    background: #7209b7;  /* Violet for low scores */
+}
+
+.score-bar[style*="width: 10%"],
+.score-bar[style*="width: 0%"] {
+    background: #f72585;  /* Pink for very low scores */
+}
+
+.score-item small {
+    color: var(--gray-600);
+    font-weight: 500;
+    width: 100px;
+    text-align: left;
+}
+
+/* Button styling */
+.domain-card .btn {
+    border-radius: 8px;
+    font-weight: 500;
+    transition: var(--transition);
+}
+
+.domain-card .btn-outline-primary {
+    border-color: var(--primary-color);
+    color: var(--primary-color);
+}
+
+.domain-card .btn-outline-primary:hover {
+    background-color: var(--primary-color);
+    color: white;
+}
+
+.domain-card .btn-outline-danger {
+    border-color: var(--danger-color);
+    color: var(--danger-color);
+}
+
+.domain-card .btn-outline-danger:hover {
+    background-color: var(--danger-color);
+    color: white;
+}
+
+.domain-card .btn-success {
+    background-color: var(--success-color);
+    border-color: var(--success-color);
+}
+
+.domain-card .btn-success:hover {
+    background-color: #3ab7dc;
+    border-color: #3ab7dc;
+}
+
+/* Watchlist specific styling */
+.text-muted.small {
+    color: var(--gray-600) !important;
+    font-size: 0.85rem;
+}
+
+.alert-toggle {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background-color: var(--gray-200);
+    color: var(--gray-600);
+    border: none;
+    transition: var(--transition);
+}
+
+.alert-toggle:hover {
+    background-color: var(--gray-300);
+}
+
+.alert-toggle.active {
+    background-color: var(--primary-light);
+    color: var(--primary-color);
+}
+
+.alert-toggle i {
+    font-size: 1.1rem;
+}
+
+/* Responsive adjustments */
+@media (max-width: 992px) {
+    .profile-sidebar {
+        margin-bottom: 2rem;
+    }
+}
+
+@media (max-width: 768px) {
+    .card-body {
+        padding: 1.5rem;
+    }
+    
+    .domain-card {
+        padding: 1.25rem;
+    }
+    
+    .btn-group {
+        flex-wrap: wrap;
+    }
+    
+    .btn-group .btn {
+        margin-bottom: 0.5rem;
+    }
+}
+
+@media (max-width: 576px) {
+    .d-flex.gap-2 {
+        flex-wrap: wrap;
+    }
+    
+    .d-flex.gap-2 .btn {
+        width: 100%;
+        margin-bottom: 0.5rem;
+    }
+    
+    .alert-toggle {
+        width: 100%;
+        border-radius: 8px;
+        height: 38px;
+    }
+}
+
+/* Animations */
+@keyframes fadeOut {
+    from {
+        opacity: 1;
+        transform: translateY(0);
+    }
+    to {
+        opacity: 0;
+        transform: translateY(-10px);
+    }
+}
+
+.fade-out {
+    animation: fadeOut 0.3s ease-out forwards;
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.fade-in {
+    animation: fadeIn 0.3s ease-out forwards;
+}
+
+/* Toast styling */
+.toast-container {
+    z-index: 1060;
+}
+
+.toast {
+    border-radius: 8px;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.15);
+}
+
+.toast-body {
+    font-weight: 500;
+    padding: 0.75rem 1rem;
+} 

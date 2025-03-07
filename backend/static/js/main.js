@@ -271,7 +271,7 @@ document.addEventListener('DOMContentLoaded', function() {
                                                 <div class="score-bar" style="width: ${detail.score}%"></div>
                                             </div>
                                             <small class="ms-2">${key.charAt(0).toUpperCase() + key.slice(1)}</small>
-                                            <div class="score-tooltip">${detail.description}</div>
+                                            
                                         </div>
                                     `).join('')}
                                 </div>
@@ -546,9 +546,7 @@ document.addEventListener('DOMContentLoaded', function() {
                         });
                     }
                     
-                    // Reinitialize necessary functions and event listeners
-                    console.log('Initializing favorites page...');
-                    initializeFavoritesPage();
+                 
                     
                     // Reinitialize any necessary scripts
                     updateAuthUI();
@@ -902,17 +900,8 @@ function showToast(message, type = 'success') {
     const toast = document.createElement('div');
     toast.className = 'toast-notification';
     
-    // Set background color based on type
-    if (type === 'error') {
-        toast.style.backgroundColor = '#dc3545';
-    } else if (type === 'warning') {
-        toast.style.backgroundColor = '#ffc107';
-        toast.style.color = '#212529';
-    } else if (type === 'info') {
-        toast.style.backgroundColor = '#0dcaf0';
-    } else {
-        toast.style.backgroundColor = '#198754';
-    }
+    // Add class based on type
+    toast.classList.add(type);
     
     // Add icon based on type
     let icon = '';
@@ -996,38 +985,6 @@ async function addToWatchlist(event, brandName, domainName, extension) {
     }
 }
 
-// Remove from watchlist
-async function removeFromWatchlist(watchlistId) {
-    try {
-        const response = await fetch(`/watchlist/${watchlistId}`, {
-            method: 'DELETE',
-            headers: {
-                'Authorization': `Bearer ${authToken}`,
-            }
-        });
-        
-        if (response.ok) {
-            // Remove the watchlist item from the DOM
-            const watchlistElement = document.querySelector(`[data-watchlist-id="${watchlistId}"]`);
-            if (watchlistElement) {
-                watchlistElement.remove();
-            }
-            showToast('Domain removed from watchlist');
-            
-            // Update the watchlist count
-            const countElement = document.getElementById('watchlistCount');
-            if (countElement) {
-                const currentCount = parseInt(countElement.textContent) - 1;
-                countElement.textContent = currentCount;
-            }
-        } else {
-            showToast('Failed to remove domain from watchlist', 'error');
-        }
-    } catch (error) {
-        console.error('Error removing from watchlist:', error);
-        showToast('Failed to remove from watchlist', 'error');
-    }
-}
 
 // Function to get the URL for a specific domain provider
 function getDomainProviderUrl(provider, domain) {
@@ -1239,174 +1196,8 @@ function initializeWatchlistSorting() {
     }
 }
 
-// Add sorting functionality for favorites
-function initializeFavoritesSorting() {
-    const favoriteSortButtons = document.querySelectorAll('#favorites .btn-group button[data-sort]');
-    console.log('Found favorites sort buttons:', favoriteSortButtons.length);
-    
-    // Create a more modern sorting control
-    const sortingContainer = document.createElement('div');
-    sortingContainer.className = 'sorting-controls';
-    
-    // Add sort buttons
-    const sortOptions = [
-        { value: 'name', label: 'Name' },
-        { value: 'date', label: 'Date Added' },
-        { value: 'price', label: 'Price' },
-        { value: 'score', label: 'Score' }
-    ];
-    
-    sortOptions.forEach(option => {
-        const button = document.createElement('button');
-        button.className = 'sort-btn';
-        button.setAttribute('data-sort', option.value);
-        button.textContent = `Sort by ${option.label}`;
-        
-        button.addEventListener('click', (e) => {
-            // Remove active class from all buttons
-            document.querySelectorAll('.sort-btn').forEach(btn => btn.classList.remove('active'));
-            // Add active class to clicked button
-            e.target.classList.add('active');
-            
-            const sortBy = e.target.getAttribute('data-sort');
-            console.log('Sorting favorites by:', sortBy);
-            
-            const favoriteItems = Array.from(document.querySelectorAll('.favorites-list > div'));
-            console.log('Items to sort:', favoriteItems.length);
-            
-            favoriteItems.sort((a, b) => {
-                const aValue = a.getAttribute(`data-${sortBy}`).toLowerCase();
-                const bValue = b.getAttribute(`data-${sortBy}`).toLowerCase();
-                
-                // For numeric values like price
-                if (sortBy === 'price' || sortBy === 'score') {
-                    return parseFloat(aValue) - parseFloat(bValue);
-                }
-                
-                return aValue.localeCompare(bValue);
-            });
-            
-            const favoritesContainer = document.querySelector('.favorites-list');
-            favoriteItems.forEach(item => favoritesContainer.appendChild(item));
-            console.log('Sorting complete');
-        });
-        
-        sortingContainer.appendChild(button);
-    });
-    
-    // Insert the sorting controls before the favorites list
-    const favoritesContent = document.getElementById('favorites');
-    if (favoritesContent) {
-        const favoritesList = favoritesContent.querySelector('.favorites-list');
-        if (favoritesList) {
-            favoritesContent.insertBefore(sortingContainer, favoritesList);
-        }
-    }
-}
 
-// Update the initializeFavoritesPage function to call our new sorting functions
-function initializeFavoritesPage() {
-    console.log('Initializing favorites page...');
-    
-    // Initialize sorting for watchlist and favorites
-    initializeWatchlistSorting();
-    initializeFavoritesSorting();
-    
-    // Check for watchlist elements
-    const watchlistTab = document.getElementById('watchlist-tab');
-    const watchlistContent = document.getElementById('watchlist');
-    console.log('Found watchlist tab:', !!watchlistTab);
-    console.log('Found watchlist content:', !!watchlistContent);
-    
-    if (watchlistContent) {
-        const watchlistItems = watchlistContent.querySelectorAll('.watchlist-list > div');
-        console.log('Found watchlist items:', watchlistItems.length);
-    }
 
-    // Define toggleAlert function
-    window.toggleAlert = async function(id, button) {
-        try {
-            const currentState = button.getAttribute('data-notify') === 'true';
-            const response = await fetch(`/watchlist/${id}/notify`, {
-                method: 'PUT',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${localStorage.getItem('authToken')}`
-                },
-                body: JSON.stringify({ notify: !currentState })
-            });
-
-            if (response.ok) {
-                const newState = !currentState;
-                button.setAttribute('data-notify', newState.toString());
-                
-                if (newState) {
-                    button.classList.add('active');
-                    button.innerHTML = '<i class="bi bi-bell"></i>';
-                    showToast('Alerts enabled for this domain', 'success');
-                } else {
-                    button.classList.remove('active');
-                    button.innerHTML = '<i class="bi bi-bell-slash"></i>';
-                    showToast('Alerts disabled for this domain', 'success');
-                }
-            } else {
-                showToast('Failed to update alert settings', 'error');
-            }
-        } catch (error) {
-            console.error('Error toggling alert:', error);
-            showToast('Failed to update alert settings', 'error');
-        }
-    };
-    
-    // Define removeFromWatchlist function
-    window.removeFromWatchlist = async function(watchlistId) {
-        console.log('Removing watchlist item:', watchlistId);
-        try {
-            const response = await fetch(`/watchlist/${watchlistId}`, {
-                method: 'DELETE',
-                headers: {
-                    'Authorization': `Bearer ${localStorage.getItem('authToken')}`
-                }
-            });
-
-            console.log('Remove watchlist response:', response.status);
-            if (response.ok) {
-                // Remove the watchlist item from the UI with a fade-out animation
-                const watchlistItem = document.querySelector(`[data-watchlist-id="${watchlistId}"]`);
-                console.log('Found watchlist item to remove:', !!watchlistItem);
-                
-                if (watchlistItem) {
-                    // Add fade-out animation
-                    watchlistItem.style.transition = 'all 0.3s ease';
-                    watchlistItem.style.opacity = '0';
-                    watchlistItem.style.transform = 'translateY(-10px)';
-                    
-                    // Remove after animation completes
-                    setTimeout(() => {
-                        watchlistItem.remove();
-                    }, 300);
-                }
-                
-                // Update the watchlist count
-                const watchlistCount = document.getElementById('watchlistCount');
-                if (watchlistCount) {
-                    const currentCount = parseInt(watchlistCount.textContent);
-                    watchlistCount.textContent = currentCount - 1;
-                    console.log('Updated watchlist count to:', currentCount - 1);
-                }
-                
-                showToast('Domain removed from watchlist successfully', 'success');
-            } else {
-                showToast('Failed to remove domain from watchlist', 'error');
-            }
-        } catch (error) {
-            console.error('Error removing from watchlist:', error);
-            showToast('Failed to remove domain from watchlist', 'error');
-        }
-    };
-    
-    console.log('Favorites page initialization complete');
-}
 
 // Initialize auth UI on page load
 updateAuthUI();
@@ -1496,3 +1287,110 @@ function updateRegisterButtonIcon(button, provider) {
         button.insertBefore(document.createTextNode(' '), newIcon.nextSibling);
     }
 } 
+
+
+// Favorites Page JavaScript
+
+// Make sure deleteFavorite is defined in the global scope
+function deleteFavorite(favoriteId) {
+    if (!confirm('Are you sure you want to remove this domain from your favorites?')) {
+        return;
+    }
+    
+    fetch(`/favorites/${favoriteId}`, {
+        method: 'DELETE',
+        headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${localStorage.getItem('authToken')}`
+        }
+    })
+    .then(response => {
+        if (response.ok) {
+            // Remove the card from the UI
+            const card = document.querySelector(`[data-favorite-id="${favoriteId}"]`);
+            if (card) {
+                card.classList.add('fade-out');
+                setTimeout(() => {
+                    card.remove();
+                    
+                    // Update the count
+                    const favoritesCount = document.getElementById('favoritesCount');
+                    if (favoritesCount) {
+                        const currentCount = parseInt(favoritesCount.textContent);
+                        favoritesCount.textContent = Math.max(0, currentCount - 1);
+                    }
+                    
+                    // Show message if no favorites left
+                    const favoritesList = document.querySelector('.favorites-list');
+                    if (favoritesList && favoritesList.children.length === 0) {
+                        favoritesList.innerHTML = '<div class="col-12 text-center py-5"><p class="text-muted">You have no saved domains yet.</p></div>';
+                    }
+                }, 300);
+            }
+            
+            showToast('Domain removed from favorites', 'success');
+        } else {
+            response.json().then(errorData => {
+                showToast(errorData.detail || 'Failed to remove domain from favorites', 'error');
+            }).catch(() => {
+                showToast('Failed to remove domain from favorites', 'error');
+            });
+        }
+    })
+    .catch(error => {
+        console.error('Error removing favorite:', error);
+        showToast('Failed to remove domain from favorites', 'error');
+    });
+}
+
+// Make removeFromWatchlist available in the global scope
+function removeFromWatchlist(watchlistId) {
+    if (!confirm('Are you sure you want to remove this domain from your watchlist?')) {
+        return;
+    }
+    
+    fetch(`/watchlist/${watchlistId}`, {
+        method: 'DELETE',
+        headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${localStorage.getItem('authToken')}`
+        }
+    })
+    .then(response => {
+        if (response.ok) {
+            // Remove the card from the UI
+            const card = document.querySelector(`[data-watchlist-id="${watchlistId}"]`);
+            if (card) {
+                card.classList.add('fade-out');
+                setTimeout(() => {
+                    card.remove();
+                    
+                    // Update the count
+                    const watchlistCount = document.getElementById('watchlistCount');
+                    if (watchlistCount) {
+                        const currentCount = parseInt(watchlistCount.textContent);
+                        watchlistCount.textContent = Math.max(0, currentCount - 1);
+                    }
+                    
+                    // Show message if no watchlist items left
+                    const watchlistList = document.querySelector('.watchlist-list');
+                    if (watchlistList && watchlistList.children.length === 0) {
+                        watchlistList.innerHTML = '<div class="col-12 text-center py-5"><p class="text-muted">You have no domains in your watchlist yet.</p></div>';
+                    }
+                }, 300);
+            }
+            
+            showToast('Domain removed from watchlist', 'success');
+        } else {
+            response.json().then(errorData => {
+                showToast(errorData.detail || 'Failed to remove domain from watchlist', 'error');
+            }).catch(() => {
+                showToast('Failed to remove domain from watchlist', 'error');
+            });
+        }
+    })
+    .catch(error => {
+        console.error('Error removing from watchlist:', error);
+        showToast('Failed to remove domain from watchlist', 'error');
+    });
+}

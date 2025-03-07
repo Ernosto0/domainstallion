@@ -257,4 +257,155 @@ document.getElementById('sortByPrice').addEventListener('click', () => {
 });
 
 // Initialize auth UI on page load
-updateAuthUI(); 
+updateAuthUI();
+
+
+// Make toggleAlert available in the global scope
+function toggleAlert(watchlistId, button) {
+    const currentState = button.getAttribute('data-notify') === 'true';
+    const newState = !currentState;
+    
+    fetch(`/watchlist/${watchlistId}/notify`, {
+        method: 'PATCH',
+        headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${localStorage.getItem('authToken')}`
+        },
+        body: JSON.stringify({
+            notify_when_available: newState
+        })
+    })
+    .then(response => {
+        if (response.ok) {
+            // Update button state
+            button.setAttribute('data-notify', newState.toString());
+            button.classList.toggle('active', newState);
+            
+            // Update icon
+            const icon = button.querySelector('i');
+            if (icon) {
+                if (newState) {
+                    icon.classList.remove('bi-bell-slash');
+                    icon.classList.add('bi-bell');
+                    button.setAttribute('title', 'Notifications enabled');
+                } else {
+                    icon.classList.remove('bi-bell');
+                    icon.classList.add('bi-bell-slash');
+                    button.setAttribute('title', 'Get notified when available');
+                }
+            }
+            
+            // Update tooltip
+            const tooltip = bootstrap.Tooltip.getInstance(button);
+            if (tooltip) {
+                tooltip.dispose();
+                new bootstrap.Tooltip(button);
+            }
+            
+            showToast(newState ? 'Notifications enabled' : 'Notifications disabled', 'success');
+        } else {
+            response.json().then(errorData => {
+                showToast(errorData.detail || 'Failed to update notification settings', 'error');
+            }).catch(() => {
+                showToast('Failed to update notification settings', 'error');
+            });
+        }
+    })
+    .catch(error => {
+        console.error('Error toggling alert:', error);
+        showToast('Failed to update notification settings', 'error');
+    });
+}
+
+// Toast notification function
+function showToast(message, type = 'info') {
+    // Check if toast container exists, create if not
+    let toastContainer = document.querySelector('.toast-container');
+    if (!toastContainer) {
+        toastContainer = document.createElement('div');
+        toastContainer.className = 'toast-container position-fixed bottom-0 end-0 p-3';
+        document.body.appendChild(toastContainer);
+    }
+    
+    // Create toast element
+    const toastId = 'toast-' + Date.now();
+    const toastHtml = `
+        <div id="${toastId}" class="toast align-items-center text-white bg-${type === 'success' ? 'success' : type === 'error' ? 'danger' : 'primary'}" role="alert" aria-live="assertive" aria-atomic="true">
+            <div class="d-flex">
+                <div class="toast-body">
+                    ${message}
+                </div>
+                <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
+            </div>
+        </div>
+    `;
+    
+    toastContainer.insertAdjacentHTML('beforeend', toastHtml);
+    
+    // Initialize and show the toast
+    const toastElement = document.getElementById(toastId);
+    const toast = new bootstrap.Toast(toastElement, { delay: 5000 });
+    toast.show();
+    
+    // Remove toast after it's hidden
+    toastElement.addEventListener('hidden.bs.toast', function() {
+        toastElement.remove();
+    });
+}
+
+// Initialize tooltips and other UI elements when the DOM is loaded
+document.addEventListener('DOMContentLoaded', function() {
+    // Initialize tooltips
+    const tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+    tooltipTriggerList.map(function (tooltipTriggerEl) {
+        return new bootstrap.Tooltip(tooltipTriggerEl);
+    });
+
+    // Sort buttons functionality
+    const sortButtons = document.querySelectorAll('.btn-group .btn[data-sort]');
+    sortButtons.forEach(button => {
+        button.addEventListener('click', function() {
+            const sortBy = this.getAttribute('data-sort');
+            const container = this.closest('.tab-pane').querySelector('.row');
+            const items = Array.from(container.children);
+            
+            // Sort the items
+            items.sort((a, b) => {
+                let aValue = a.getAttribute(`data-${sortBy}`);
+                let bValue = b.getAttribute(`data-${sortBy}`);
+                
+                // Handle numeric values
+                if (sortBy === 'score') {
+                    return parseInt(bValue) - parseInt(aValue); // Descending for scores
+                }
+                
+                // Handle status values
+                if (sortBy === 'status') {
+                    // Sort available domains first
+                    if (aValue === 'available' && bValue !== 'available') return -1;
+                    if (aValue !== 'available' && bValue === 'available') return 1;
+                    return aValue.localeCompare(bValue);
+                }
+                
+                // Handle date values (assuming they're in a sortable format)
+                if (sortBy === 'date') {
+                    return new Date(bValue) - new Date(aValue); // Newest first
+                }
+                
+                // Default string comparison
+                return aValue.localeCompare(bValue);
+            });
+            
+            // Reappend the sorted items
+            items.forEach(item => container.appendChild(item));
+            
+            // Update active state on buttons
+            this.closest('.btn-group').querySelectorAll('.btn').forEach(btn => {
+                btn.classList.remove('active', 'btn-primary');
+                btn.classList.add('btn-outline-secondary');
+            });
+            this.classList.remove('btn-outline-secondary');
+            this.classList.add('active', 'btn-primary');
+        });
+    });
+}); 
