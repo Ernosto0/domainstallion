@@ -11,6 +11,7 @@ from sqlalchemy.orm import Session
 import os
 import logging
 import asyncio
+import time
 
 # Enable insecure transport for development
 os.environ["OAUTHLIB_INSECURE_TRANSPORT"] = "1"
@@ -68,7 +69,7 @@ templates = Jinja2Templates(directory="backend/templates")
 
 
 # Add debug middleware
-@app.middleware("http") # Change to https when deploy
+@app.middleware("http")  # Change to https when deploy
 async def debug_middleware(request: Request, call_next):
     print(f"Incoming request: {request.method} {request.url.path}")
 
@@ -252,7 +253,7 @@ async def get_favorites(
         favorites = db.query(Favorite).filter(Favorite.user_id == current_user.id).all()
         print(f"Found {len(favorites)} favorites")
 
-        # Get user's watchlist 
+        # Get user's watchlist
         watchlist = (
             db.query(WatchlistItemModel)
             .filter(WatchlistItemModel.user_id == current_user.id)
@@ -527,8 +528,27 @@ async def update_watchlist_notification(
 
 @app.on_event("startup")
 async def startup_event():
+    # Set higher log level for domain checker to reduce verbosity
+    logging.getLogger("backend.services.domain_checker").setLevel(logging.INFO)
+
     # Start the background task
     asyncio.create_task(check_watchlist_domains())
+    logging.info("Started watchlist domain checking background task")
+
+    # Preload common domains into cache
+    from backend.services.domain_checker import preload_common_domains
+
+    asyncio.create_task(preload_common_domains())
+    logging.info("Started preloading common domains")
+
+
+@app.on_event("shutdown")
+async def shutdown_event():
+    # Clean up resources
+    from backend.services.domain_checker import cleanup_resources
+
+    await cleanup_resources()
+    logging.info("Cleaned up resources on shutdown")
 
 
 @app.get("/privacy", response_class=HTMLResponse)
@@ -581,3 +601,36 @@ async def check_trademark_endpoint(request: Request, domain: str):
         return result
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/api/test-domain-checker/{domain}")
+async def test_domain_checker(domain: str):
+    """
+    Test endpoint for the domain checker
+    """
+    try:
+        # Split domain into name and extension
+        parts = domain.split(".")
+        if len(parts) != 2:
+            return {"error": "Invalid domain format. Use format: example.com"}
+
+        domain_name, extension = parts
+
+        # Import the domain checker
+        from backend.services.domain_checker import check_domain_availability
+
+        # Check domain availability
+        is_available, price_info = await check_domain_availability(
+            domain_name, extension
+        )
+
+        # Return the result
+        return {
+            "domain": domain,
+            "available": is_available,
+            "price_info": price_info,
+            "timestamp": time.time(),
+        }
+    except Exception as e:
+        logging.error(f"Error testing domain checker: {str(e)}")
+        return {"error": str(e)}
