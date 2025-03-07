@@ -279,11 +279,28 @@ document.addEventListener('DOMContentLoaded', function() {
                             ${brand.domains.com.available ? `
                                 <div class="d-flex gap-2 mb-3">
                                     <div class="d-flex gap-2 flex-grow-1">
-                                        <a href="https://domains.google.com/registrar/search?searchTerm=${brand.name}.com" 
-                                           target="_blank" 
-                                           class="btn btn-sm btn-outline-primary flex-grow-1">
-                                            <i class="bi bi-cart"></i> Register Domain
-                                        </a>
+                                        <div class="btn-group flex-grow-1">
+                                            <a href="https://www.godaddy.com/domainsearch/find?domainToCheck=${brand.name}.com" 
+                                               target="_blank" 
+                                               class="btn btn-sm btn-outline-primary register-domain-btn flex-grow-1"
+                                               data-domain="${brand.name}.com"
+                                               data-provider="godaddy">
+                                                <img src="/static/css/images/godaddy.ico" class="provider-icon" width="14" height="14" alt="GoDaddy"> Register Domain
+                                            </a>
+                                            <button type="button" 
+                                                    class="btn btn-sm btn-outline-primary dropdown-toggle dropdown-toggle-split" 
+                                                    data-bs-toggle="dropdown" 
+                                                    aria-expanded="false">
+                                                <span class="visually-hidden">Toggle Dropdown</span>
+                                            </button>
+                                            <ul class="dropdown-menu dropdown-menu-end provider-dropdown">
+                                                <li><h6 class="dropdown-header">Choose Provider</h6></li>
+                                                <li><a class="dropdown-item provider-option" href="#" data-provider="godaddy" data-domain="${brand.name}.com">GoDaddy</a></li>
+                                                <li><a class="dropdown-item provider-option" href="#" data-provider="namespace" data-domain="${brand.name}.com">Namespace</a></li>
+                                                <li><a class="dropdown-item provider-option" href="#" data-provider="namecheap" data-domain="${brand.name}.com">Namecheap</a></li>
+                                                <li><a class="dropdown-item provider-option" href="#" data-provider="porkbun" data-domain="${brand.name}.com">Porkbun</a></li>
+                                            </ul>
+                                        </div>
                                         <button class="btn btn-sm btn-outline-dark flex-grow-1"
                                                 onclick="checkTrademark(event, '${brand.name}')">
                                             <i class="bi bi-bank"></i> Check Trademark
@@ -570,7 +587,8 @@ document.addEventListener('DOMContentLoaded', function() {
     // Call this when the page loads
     addAuthHeadersToXHR();
 
-    
+    // Initialize provider dropdown functionality
+    initializeProviderDropdowns();
 });
 
 // Update UI based on auth state
@@ -962,6 +980,22 @@ async function removeFromWatchlist(watchlistId) {
     }
 }
 
+// Function to get the URL for a specific domain provider
+function getDomainProviderUrl(provider, domain) {
+    switch(provider.toLowerCase()) {
+        case 'godaddy':
+            return `https://www.godaddy.com/domainsearch/find?domainToCheck=${domain}`;
+        case 'namespace':
+            return `https://www.namespace.com/domain/search/${domain}`;
+        case 'namecheap':
+            return `https://www.namecheap.com/domains/registration/results/?domain=${domain}`;
+        case 'porkbun':
+            return `https://porkbun.com/checkout/search?q=${domain}`;
+        default:
+            return `https://www.godaddy.com/domainsearch/find?domainToCheck=${domain}`;
+    }
+}
+
 // Update the createDomainCard function to remove detailed scores
 function createDomainCard(brandName, ext, info, isFirstVariant = true) {
     console.log(`Creating domain card for ${brandName}.${ext}:`, info);
@@ -999,11 +1033,28 @@ function createDomainCard(brandName, ext, info, isFirstVariant = true) {
         </div>
         ${info.available ? `
             <div class="mt-2 d-flex gap-2">
-                <a href="https://domains.google.com/registrar/search?searchTerm=${brandName}.${ext}" 
-                   target="_blank" 
-                   class="btn btn-sm btn-outline-primary flex-grow-1">
-                    Register Domain
-                </a>
+                <div class="btn-group flex-grow-1">
+                    <a href="https://www.godaddy.com/domainsearch/find?domainToCheck=${brandName}.${ext}" 
+                       target="_blank" 
+                       class="btn btn-sm btn-outline-primary register-domain-btn flex-grow-1"
+                       data-domain="${brandName}.${ext}"
+                       data-provider="godaddy">
+                        <img src="/static/css/images/godaddy.ico" class="provider-icon" width="14" height="14" alt="GoDaddy"> Register Domain
+                    </a>
+                    <button type="button" 
+                            class="btn btn-sm btn-outline-primary dropdown-toggle dropdown-toggle-split" 
+                            data-bs-toggle="dropdown" 
+                            aria-expanded="false">
+                        <span class="visually-hidden">Toggle Dropdown</span>
+                    </button>
+                    <ul class="dropdown-menu dropdown-menu-end provider-dropdown">
+                        <li><h6 class="dropdown-header">Choose Provider</h6></li>
+                        <li><a class="dropdown-item provider-option" href="#" data-provider="godaddy" data-domain="${brandName}.${ext}">GoDaddy</a></li>
+                        <li><a class="dropdown-item provider-option" href="#" data-provider="namespace" data-domain="${brandName}.${ext}">Namespace</a></li>
+                        <li><a class="dropdown-item provider-option" href="#" data-provider="namecheap" data-domain="${brandName}.${ext}">Namecheap</a></li>
+                        <li><a class="dropdown-item provider-option" href="#" data-provider="porkbun" data-domain="${brandName}.${ext}">Porkbun</a></li>
+                    </ul>
+                </div>
                 <button class="btn btn-sm btn-outline-success favorite-btn"
                         onclick="addToFavorites(event, '${brandName}', '${brandName}.${ext}', '${ext}', '${info.price}')">
                     <span class="heart-icon">♥</span>
@@ -1167,4 +1218,90 @@ function initializeFavoritesPage() {
 }
 
 // Initialize auth UI on page load
-updateAuthUI(); 
+updateAuthUI();
+
+// Initialize provider dropdown functionality
+function initializeProviderDropdowns() {
+    // Use event delegation to handle clicks on provider options
+    document.addEventListener('click', function(e) {
+        if (e.target && e.target.classList.contains('provider-option')) {
+            e.preventDefault();
+            const provider = e.target.getAttribute('data-provider');
+            const domain = e.target.getAttribute('data-domain');
+            
+            // Find the closest register button
+            const dropdown = e.target.closest('.dropdown-menu');
+            const btnGroup = dropdown.closest('.btn-group');
+            const registerBtn = btnGroup.querySelector('.register-domain-btn');
+            
+            // Update the main button's href and provider
+            registerBtn.href = getDomainProviderUrl(provider, domain);
+            registerBtn.setAttribute('data-provider', provider);
+            
+            // Update the button with the provider icon
+            updateRegisterButtonIcon(registerBtn, provider);
+            
+            // Show a toast notification to inform the user
+            const providerName = provider.charAt(0).toUpperCase() + provider.slice(1);
+            showToast(`${providerName} selected for domain registration`, 'info');
+            
+            // Close the dropdown
+            const dropdownToggle = btnGroup.querySelector('.dropdown-toggle');
+            if (dropdownToggle) {
+                const bsDropdown = bootstrap.Dropdown.getInstance(dropdownToggle);
+                if (bsDropdown) {
+                    bsDropdown.hide();
+                }
+            }
+        }
+    });
+    
+    console.log('Provider dropdowns initialized');
+}
+
+// Function to update the register button with the provider icon
+function updateRegisterButtonIcon(button, provider) {
+    // Get the current icon if it exists
+    const existingIcon = button.querySelector('.provider-icon');
+    
+    // Set the icon path based on the provider
+    let iconPath;
+    switch(provider.toLowerCase()) {
+        case 'godaddy':
+            iconPath = '/static/css/images/godaddy.ico';
+            break;
+        case 'namecheap':
+            iconPath = '/static/css/images/namecheap.ico';
+            break;
+        case 'namespace':
+            // Use a default icon or placeholder for providers without specific icons
+            iconPath = '/static/css/images/godaddy.ico'; // Default to godaddy for now
+            break;
+        case 'porkbun':
+            // Use a default icon or placeholder for providers without specific icons
+            iconPath = '/static/css/images/godaddy.ico'; // Default to godaddy for now
+            break;
+        default:
+            iconPath = '/static/css/images/godaddy.ico';
+    }
+    
+    // If there's already an icon, just update its src
+    if (existingIcon) {
+        existingIcon.src = iconPath;
+        existingIcon.alt = provider.charAt(0).toUpperCase() + provider.slice(1);
+    } else {
+        // If no icon exists, create a new one
+        const newIcon = document.createElement('img');
+        newIcon.className = 'provider-icon';
+        newIcon.width = 14;
+        newIcon.height = 14;
+        newIcon.src = iconPath;
+        newIcon.alt = provider.charAt(0).toUpperCase() + provider.slice(1);
+        
+        // Add the icon at the beginning of the button
+        button.prepend(newIcon);
+        
+        // Add a space after the icon
+        button.insertBefore(document.createTextNode(' '), newIcon.nextSibling);
+    }
+} 

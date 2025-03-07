@@ -970,3 +970,71 @@ main {
     padding: 0.4rem 0.8rem;
     font-size: 0.875rem;
 }
+
+/* Provider dropdown styles */
+.provider-dropdown {
+    min-width: 100px;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+    border: none;
+    border-radius: 0.4rem;
+    padding: 0.3rem 0;
+    font-size: 0.8rem;
+    z-index: 1050;
+    position: absolute;
+    transform: none !important;
+    max-height: 300px;
+    overflow-y: auto;
+}
+
+.provider-dropdown .dropdown-header {
+    color: #6c757d;
+    font-weight: 600;
+    padding: 0.3rem 0.8rem;
+    font-size: 0.8rem;
+}
+
+.provider-dropdown .dropdown-item {
+    padding: 0.3rem 0.8rem;
+    font-size: 0.8rem;
+    transition: all 0.2s ease;
+}
+
+.provider-dropdown .dropdown-item:hover {
+    background-color: #f8f9fa;
+    transform: translateX(5px);
+}
+
+.btn-group .dropdown-toggle-split {
+    padding-left: 0.3rem;
+    padding-right: 0.3rem;
+    font-size: 0.75rem;
+}
+
+.register-domain-btn {
+    border-top-right-radius: 0 !important;
+    border-bottom-right-radius: 0 !important;
+    padding: 0.25rem 0.5rem;
+    font-size: 0.8rem;
+}
+
+/* Provider icon styles */
+.provider-icon {
+    width: 14px;
+    height: 14px;
+    margin-right: 4px;
+    vertical-align: text-bottom;
+    border-radius: 2px;
+    object-fit: contain;
+}
+
+/* Ensure dropdown container has proper positioning */
+.btn-group {
+    position: relative;
+}
+
+/* Make sure dropdown is visible when open */
+.dropdown-menu.show {
+    display: block !important;
+    opacity: 1 !important;
+    visibility: visible !important;
+}
