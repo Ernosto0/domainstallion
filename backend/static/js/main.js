@@ -311,6 +311,10 @@ document.addEventListener('DOMContentLoaded', function() {
                                         <span class="heart-icon">♥</span>
                                     </button>
                                 </div>
+                                <button class="toggle-score-details com-score-details" onclick="toggleComScoreDetails(this)">
+                                    <span>View Score Details</span>
+                                    <i class="bi bi-chevron-down"></i>
+                                </button>
                             ` : `
                                 <div class="d-flex gap-2 mb-3">
                                     <button class="btn btn-sm btn-outline-secondary flex-grow-1"
@@ -322,6 +326,10 @@ document.addEventListener('DOMContentLoaded', function() {
                                         <i class="bi bi-bank"></i> Check Trademark
                                     </button>
                                 </div>
+                                <button class="toggle-score-details com-score-details" onclick="toggleComScoreDetails(this)">
+                                    <span>View Score Details</span>
+                                    <i class="bi bi-chevron-down"></i>
+                                </button>
                             `}
                             ` : ''}
                             <div class="domains-container"></div>
@@ -337,21 +345,17 @@ document.addEventListener('DOMContentLoaded', function() {
                     // Get the domains container
                     const domainsContainer = brandCardContainer.querySelector('.domains-container');
                     
-                    // Process first 3 domains (excluding .com since it's in the header)
+                    // Filter out .com domains since they're in the header
                     const nonComDomains = allDomainEntries.filter(([ext]) => ext !== 'com');
-                    nonComDomains.slice(0, 3).forEach(([ext, info]) => {
-                        const domainCard = createDomainCard(brand.name, ext, info, false);
-                        domainsContainer.appendChild(domainCard);
-                    });
                     
-                    // Create container for remaining domains
-                    if (nonComDomains.length > 3) {
+                    // Create container for all domains
+                    if (nonComDomains.length > 0) {
                         const remainingContainer = document.createElement('div');
                         remainingContainer.className = 'remaining-domains';
                         remainingContainer.style.display = 'none';
                         
-                        // Process remaining domains
-                        nonComDomains.slice(3).forEach(([ext, info]) => {
+                        // Process all domains
+                        nonComDomains.forEach(([ext, info]) => {
                             const domainCard = createDomainCard(brand.name, ext, info, false);
                             remainingContainer.appendChild(domainCard);
                         });
@@ -362,23 +366,27 @@ document.addEventListener('DOMContentLoaded', function() {
                         const toggleButton = document.createElement('button');
                         toggleButton.className = 'btn btn-sm btn-outline-secondary w-100 mt-2 toggle-domains';
                         toggleButton.innerHTML = `
-                            <span class="more-text">Show More Extensions</span>
-                            <span class="less-text" style="display: none;">Show Less</span>
+                            <span class="more-text">Show More Extensions (${nonComDomains.length})</span>
+                            <span class="less-text" style="display: none;">Hide Extensions</span>
+                            <i class="bi bi-chevron-down"></i>
                         `;
                         
                         toggleButton.addEventListener('click', function() {
                             const remainingDomains = this.previousElementSibling;
                             const moreText = this.querySelector('.more-text');
                             const lessText = this.querySelector('.less-text');
+                            const icon = this.querySelector('i');
                             
                             if (remainingDomains.style.display === 'none') {
                                 remainingDomains.style.display = 'block';
                                 moreText.style.display = 'none';
                                 lessText.style.display = 'inline';
+                                icon.style.transform = 'rotate(180deg)';
                             } else {
                                 remainingDomains.style.display = 'none';
                                 moreText.style.display = 'inline';
                                 lessText.style.display = 'none';
+                                icon.style.transform = 'rotate(0)';
                             }
                         });
                         
@@ -886,14 +894,55 @@ async function addToFavorites(event, brandName, domainName, extension, price) {
 
 // Add toast notification function if it doesn't exist
 function showToast(message, type = 'success') {
+    // Remove any existing toasts
+    const existingToasts = document.querySelectorAll('.toast-notification');
+    existingToasts.forEach(toast => toast.remove());
+    
+    // Create a new toast
     const toast = document.createElement('div');
-    toast.className = `toast-notification ${type}`;
-    toast.textContent = message;
+    toast.className = 'toast-notification';
+    
+    // Set background color based on type
+    if (type === 'error') {
+        toast.style.backgroundColor = '#dc3545';
+    } else if (type === 'warning') {
+        toast.style.backgroundColor = '#ffc107';
+        toast.style.color = '#212529';
+    } else if (type === 'info') {
+        toast.style.backgroundColor = '#0dcaf0';
+    } else {
+        toast.style.backgroundColor = '#198754';
+    }
+    
+    // Add icon based on type
+    let icon = '';
+    if (type === 'error') {
+        icon = '<i class="bi bi-x-circle me-2"></i>';
+    } else if (type === 'warning') {
+        icon = '<i class="bi bi-exclamation-triangle me-2"></i>';
+    } else if (type === 'info') {
+        icon = '<i class="bi bi-info-circle me-2"></i>';
+    } else {
+        icon = '<i class="bi bi-check-circle me-2"></i>';
+    }
+    
+    // Set the toast content
+    toast.innerHTML = `
+        <div class="d-flex align-items-center">
+            ${icon}
+            <span>${message}</span>
+        </div>
+    `;
+    
+    // Add the toast to the document
     document.body.appendChild(toast);
     
     // Remove the toast after 3 seconds
     setTimeout(() => {
-        toast.remove();
+        toast.style.opacity = '0';
+        setTimeout(() => {
+            toast.remove();
+        }, 300);
     }, 3000);
 }
 
@@ -996,12 +1045,12 @@ function getDomainProviderUrl(provider, domain) {
     }
 }
 
-// Update the createDomainCard function to remove detailed scores
+// Update the createDomainCard function to not show score details for non-.com domains
 function createDomainCard(brandName, ext, info, isFirstVariant = true) {
     console.log(`Creating domain card for ${brandName}.${ext}:`, info);
     
     const domainCard = document.createElement('div');
-    domainCard.className = 'domain-card mb-2';
+    domainCard.className = 'domain-card';
     
     const statusClass = info.available ? 'domain-available' : 'domain-unavailable';
     const statusText = info.available ? `Available - ${info.price}` : 'Taken';
@@ -1018,28 +1067,42 @@ function createDomainCard(brandName, ext, info, isFirstVariant = true) {
         }
     };
     
-    // Create the base HTML structure
+    // Set score color based on value
+    let scoreColor = '#dc3545'; // Default red for low scores
+    if (score.total_score >= 80) {
+        scoreColor = '#198754'; // Green for high scores
+    } else if (score.total_score >= 60) {
+        scoreColor = '#0d6efd'; // Blue for good scores
+    } else if (score.total_score >= 40) {
+        scoreColor = '#ffc107'; // Yellow for medium scores
+    } else if (score.total_score >= 20) {
+        scoreColor = '#fd7e14'; // Orange for low scores
+    }
+    
+    // Create the base HTML structure with improved layout
     domainCard.innerHTML = `
-        <div class="d-flex justify-content-between align-items-center">
-            <div class="d-flex align-items-center gap-2">
-                <span class="domain-name h5 mb-0">${brandName}.${ext}</span>
-                <div class="score-circle-small" style="--score-value: ${score.total_score}">
+        <div class="domain-info">
+            <div class="domain-name-container">
+                <span class="domain-name">${brandName}.${ext}</span>
+                <div class="score-circle-small" style="--score-value: ${score.total_score}; --score-color: ${scoreColor}">
                     <div class="score-circle-inner">
-                        <span class="score-value">${score.total_score}</span>
+                        <span class="score-value" style="color: ${scoreColor}">${score.total_score}</span>
                     </div>
                 </div>
             </div>
             <span class="domain-badge ${statusClass}">${statusText}</span>
         </div>
+        
         ${info.available ? `
-            <div class="mt-2 d-flex gap-2">
+            <div class="domain-actions">
                 <div class="btn-group flex-grow-1">
                     <a href="https://www.godaddy.com/domainsearch/find?domainToCheck=${brandName}.${ext}" 
                        target="_blank" 
-                       class="btn btn-sm btn-outline-primary register-domain-btn flex-grow-1"
+                       class="btn btn-sm register-domain-btn"
                        data-domain="${brandName}.${ext}"
                        data-provider="godaddy">
-                        <img src="/static/css/images/godaddy.ico" class="provider-icon" width="14" height="14" alt="GoDaddy"> Register Domain
+                        <img src="/static/css/images/godaddy.ico" class="provider-icon" width="14" height="14" alt="GoDaddy"> 
+                        <span>Register Domain</span>
                     </a>
                     <button type="button" 
                             class="btn btn-sm btn-outline-primary dropdown-toggle dropdown-toggle-split" 
@@ -1055,15 +1118,15 @@ function createDomainCard(brandName, ext, info, isFirstVariant = true) {
                         <li><a class="dropdown-item provider-option" href="#" data-provider="porkbun" data-domain="${brandName}.${ext}">Porkbun</a></li>
                     </ul>
                 </div>
-                <button class="btn btn-sm btn-outline-success favorite-btn"
+                <button class="btn btn-sm favorite-btn"
                         onclick="addToFavorites(event, '${brandName}', '${brandName}.${ext}', '${ext}', '${info.price}')">
                     <span class="heart-icon">♥</span>
                 </button>
             </div>
         ` : `
-            <div class="mt-2">
-                <button class="btn btn-sm btn-outline-secondary w-100 watchlist-btn"
-                        onclick="addToWatchlist(event, '${brandName}', '${ext}')">
+            <div class="domain-actions">
+                <button class="btn btn-sm watchlist-btn w-100"
+                        onclick="addToWatchlist(event, '${brandName}', '${brandName}.${ext}', '${ext}')">
                     <i class="bi bi-eye"></i> Add to Watchlist
                 </button>
             </div>
@@ -1073,9 +1136,181 @@ function createDomainCard(brandName, ext, info, isFirstVariant = true) {
     return domainCard;
 }
 
-// Function to initialize the favorites page
+// Function to toggle score details visibility
+function toggleScoreDetails(button) {
+    const scoreDetails = button.nextElementSibling;
+    if (!scoreDetails || !scoreDetails.classList.contains('domain-score')) {
+        console.error('Score details element not found');
+        return;
+    }
+    
+    button.classList.toggle('active');
+    
+    if (scoreDetails.classList.contains('show')) {
+        scoreDetails.classList.remove('show');
+        button.querySelector('span').textContent = 'View Score Details';
+    } else {
+        scoreDetails.classList.add('show');
+        button.querySelector('span').textContent = 'Hide Score Details';
+    }
+}
+
+// Function to toggle score details visibility for .com domains
+function toggleComScoreDetails(button) {
+    const brandCard = button.closest('.brand-card');
+    if (!brandCard) {
+        console.error('Brand card not found');
+        return;
+    }
+    
+    const scoreDetails = brandCard.querySelector('.domain-score');
+    if (!scoreDetails) {
+        console.error('Score details element not found');
+        return;
+    }
+    
+    button.classList.toggle('active');
+    
+    if (scoreDetails.classList.contains('show-com-score')) {
+        scoreDetails.classList.remove('show-com-score');
+        button.querySelector('span').textContent = 'View Score Details';
+    } else {
+        scoreDetails.classList.add('show-com-score');
+        button.querySelector('span').textContent = 'Hide Score Details';
+    }
+}
+
+// Add sorting functionality for watchlist
+function initializeWatchlistSorting() {
+    const watchlistSortButtons = document.querySelectorAll('#watchlist .btn-group button[data-sort]');
+    console.log('Found watchlist sort buttons:', watchlistSortButtons.length);
+    
+    // Create a more modern sorting control
+    const sortingContainer = document.createElement('div');
+    sortingContainer.className = 'sorting-controls';
+    
+    // Add sort buttons
+    const sortOptions = [
+        { value: 'name', label: 'Name' },
+        { value: 'date', label: 'Date Added' },
+        { value: 'score', label: 'Score' }
+    ];
+    
+    sortOptions.forEach(option => {
+        const button = document.createElement('button');
+        button.className = 'sort-btn';
+        button.setAttribute('data-sort', option.value);
+        button.textContent = `Sort by ${option.label}`;
+        
+        button.addEventListener('click', (e) => {
+            // Remove active class from all buttons
+            document.querySelectorAll('.sort-btn').forEach(btn => btn.classList.remove('active'));
+            // Add active class to clicked button
+            e.target.classList.add('active');
+            
+            const sortBy = e.target.getAttribute('data-sort');
+            console.log('Sorting watchlist by:', sortBy);
+            
+            const watchlistItems = Array.from(document.querySelectorAll('.watchlist-list > div'));
+            console.log('Items to sort:', watchlistItems.length);
+            
+            watchlistItems.sort((a, b) => {
+                const aValue = a.getAttribute(`data-${sortBy}`).toLowerCase();
+                const bValue = b.getAttribute(`data-${sortBy}`).toLowerCase();
+                console.log(`Comparing ${aValue} with ${bValue}`);
+                return aValue.localeCompare(bValue);
+            });
+            
+            const watchlistContainer = document.querySelector('.watchlist-list');
+            watchlistItems.forEach(item => watchlistContainer.appendChild(item));
+            console.log('Sorting complete');
+        });
+        
+        sortingContainer.appendChild(button);
+    });
+    
+    // Insert the sorting controls before the watchlist
+    const watchlistContent = document.getElementById('watchlist');
+    if (watchlistContent) {
+        const watchlistList = watchlistContent.querySelector('.watchlist-list');
+        if (watchlistList) {
+            watchlistContent.insertBefore(sortingContainer, watchlistList);
+        }
+    }
+}
+
+// Add sorting functionality for favorites
+function initializeFavoritesSorting() {
+    const favoriteSortButtons = document.querySelectorAll('#favorites .btn-group button[data-sort]');
+    console.log('Found favorites sort buttons:', favoriteSortButtons.length);
+    
+    // Create a more modern sorting control
+    const sortingContainer = document.createElement('div');
+    sortingContainer.className = 'sorting-controls';
+    
+    // Add sort buttons
+    const sortOptions = [
+        { value: 'name', label: 'Name' },
+        { value: 'date', label: 'Date Added' },
+        { value: 'price', label: 'Price' },
+        { value: 'score', label: 'Score' }
+    ];
+    
+    sortOptions.forEach(option => {
+        const button = document.createElement('button');
+        button.className = 'sort-btn';
+        button.setAttribute('data-sort', option.value);
+        button.textContent = `Sort by ${option.label}`;
+        
+        button.addEventListener('click', (e) => {
+            // Remove active class from all buttons
+            document.querySelectorAll('.sort-btn').forEach(btn => btn.classList.remove('active'));
+            // Add active class to clicked button
+            e.target.classList.add('active');
+            
+            const sortBy = e.target.getAttribute('data-sort');
+            console.log('Sorting favorites by:', sortBy);
+            
+            const favoriteItems = Array.from(document.querySelectorAll('.favorites-list > div'));
+            console.log('Items to sort:', favoriteItems.length);
+            
+            favoriteItems.sort((a, b) => {
+                const aValue = a.getAttribute(`data-${sortBy}`).toLowerCase();
+                const bValue = b.getAttribute(`data-${sortBy}`).toLowerCase();
+                
+                // For numeric values like price
+                if (sortBy === 'price' || sortBy === 'score') {
+                    return parseFloat(aValue) - parseFloat(bValue);
+                }
+                
+                return aValue.localeCompare(bValue);
+            });
+            
+            const favoritesContainer = document.querySelector('.favorites-list');
+            favoriteItems.forEach(item => favoritesContainer.appendChild(item));
+            console.log('Sorting complete');
+        });
+        
+        sortingContainer.appendChild(button);
+    });
+    
+    // Insert the sorting controls before the favorites list
+    const favoritesContent = document.getElementById('favorites');
+    if (favoritesContent) {
+        const favoritesList = favoritesContent.querySelector('.favorites-list');
+        if (favoritesList) {
+            favoritesContent.insertBefore(sortingContainer, favoritesList);
+        }
+    }
+}
+
+// Update the initializeFavoritesPage function to call our new sorting functions
 function initializeFavoritesPage() {
     console.log('Initializing favorites page...');
+    
+    // Initialize sorting for watchlist and favorites
+    initializeWatchlistSorting();
+    initializeFavoritesSorting();
     
     // Check for watchlist elements
     const watchlistTab = document.getElementById('watchlist-tab');
@@ -1098,49 +1333,36 @@ function initializeFavoritesPage() {
                     'Content-Type': 'application/json',
                     'Authorization': `Bearer ${localStorage.getItem('authToken')}`
                 },
-                body: JSON.stringify({
-                    notify_when_available: !currentState
-                })
+                body: JSON.stringify({ notify: !currentState })
             });
 
             if (response.ok) {
-                button.setAttribute('data-notify', (!currentState).toString());
+                const newState = !currentState;
+                button.setAttribute('data-notify', newState.toString());
                 
-                // Update button appearance
-                if (!currentState) {
+                if (newState) {
                     button.classList.add('active');
-                    button.querySelector('i').classList.remove('bi-bell-slash');
-                    button.querySelector('i').classList.add('bi-bell');
-                    button.setAttribute('title', 'Notifications enabled');
+                    button.innerHTML = '<i class="bi bi-bell"></i>';
+                    showToast('Alerts enabled for this domain', 'success');
                 } else {
                     button.classList.remove('active');
-                    button.querySelector('i').classList.remove('bi-bell');
-                    button.querySelector('i').classList.add('bi-bell-slash');
-                    button.setAttribute('title', 'Get notified when available');
+                    button.innerHTML = '<i class="bi bi-bell-slash"></i>';
+                    showToast('Alerts disabled for this domain', 'success');
                 }
-                
-                // Update tooltip if it exists
-                const tooltip = bootstrap.Tooltip.getInstance(button);
-                if (tooltip) {
-                    tooltip.dispose();
-                }
-                new bootstrap.Tooltip(button);
-
-                showToast('success', !currentState ? 'Alerts enabled' : 'Alerts disabled');
             } else {
-                showToast('error', 'Failed to update alert settings');
+                showToast('Failed to update alert settings', 'error');
             }
         } catch (error) {
             console.error('Error toggling alert:', error);
-            showToast('error', 'Failed to update alert settings');
+            showToast('Failed to update alert settings', 'error');
         }
     };
-
+    
     // Define removeFromWatchlist function
-    window.removeFromWatchlist = async function(id) {
-        console.log('Removing watchlist item:', id);
+    window.removeFromWatchlist = async function(watchlistId) {
+        console.log('Removing watchlist item:', watchlistId);
         try {
-            const response = await fetch(`/watchlist/${id}`, {
+            const response = await fetch(`/watchlist/${watchlistId}`, {
                 method: 'DELETE',
                 headers: {
                     'Authorization': `Bearer ${localStorage.getItem('authToken')}`
@@ -1149,12 +1371,22 @@ function initializeFavoritesPage() {
 
             console.log('Remove watchlist response:', response.status);
             if (response.ok) {
-                // Remove the watchlist item from the UI
-                const watchlistItem = document.querySelector(`[data-watchlist-id="${id}"]`);
+                // Remove the watchlist item from the UI with a fade-out animation
+                const watchlistItem = document.querySelector(`[data-watchlist-id="${watchlistId}"]`);
                 console.log('Found watchlist item to remove:', !!watchlistItem);
+                
                 if (watchlistItem) {
-                    watchlistItem.remove();
+                    // Add fade-out animation
+                    watchlistItem.style.transition = 'all 0.3s ease';
+                    watchlistItem.style.opacity = '0';
+                    watchlistItem.style.transform = 'translateY(-10px)';
+                    
+                    // Remove after animation completes
+                    setTimeout(() => {
+                        watchlistItem.remove();
+                    }, 300);
                 }
+                
                 // Update the watchlist count
                 const watchlistCount = document.getElementById('watchlistCount');
                 if (watchlistCount) {
@@ -1162,6 +1394,7 @@ function initializeFavoritesPage() {
                     watchlistCount.textContent = currentCount - 1;
                     console.log('Updated watchlist count to:', currentCount - 1);
                 }
+                
                 showToast('Domain removed from watchlist successfully', 'success');
             } else {
                 showToast('Failed to remove domain from watchlist', 'error');
@@ -1171,48 +1404,6 @@ function initializeFavoritesPage() {
             showToast('Failed to remove domain from watchlist', 'error');
         }
     };
-
-    // Add sorting functionality for watchlist
-    const watchlistSortButtons = document.querySelectorAll('#watchlist .btn-group button[data-sort]');
-    console.log('Found watchlist sort buttons:', watchlistSortButtons.length);
-    watchlistSortButtons.forEach(button => {
-        button.addEventListener('click', () => {
-            const sortBy = button.getAttribute('data-sort');
-            console.log('Sorting watchlist by:', sortBy);
-            const watchlistItems = Array.from(document.querySelectorAll('.watchlist-list > div'));
-            console.log('Items to sort:', watchlistItems.length);
-            
-            watchlistItems.sort((a, b) => {
-                const aValue = a.getAttribute(`data-${sortBy}`).toLowerCase();
-                const bValue = b.getAttribute(`data-${sortBy}`).toLowerCase();
-                console.log(`Comparing ${aValue} with ${bValue}`);
-                return aValue.localeCompare(bValue);
-            });
-            
-            const watchlistContainer = document.querySelector('.watchlist-list');
-            watchlistItems.forEach(item => watchlistContainer.appendChild(item));
-            console.log('Sorting complete');
-        });
-    });
-
-    // Add sorting functionality for favorites
-    const favoriteSortButtons = document.querySelectorAll('#favorites .btn-group button[data-sort]');
-    console.log('Found favorites sort buttons:', favoriteSortButtons.length);
-    favoriteSortButtons.forEach(button => {
-        button.addEventListener('click', () => {
-            const sortBy = button.getAttribute('data-sort');
-            const favoriteItems = Array.from(document.querySelectorAll('.favorites-list > div'));
-            
-            favoriteItems.sort((a, b) => {
-                const aValue = a.getAttribute(`data-${sortBy}`).toLowerCase();
-                const bValue = b.getAttribute(`data-${sortBy}`).toLowerCase();
-                return aValue.localeCompare(bValue);
-            });
-            
-            const favoritesContainer = document.querySelector('.favorites-list');
-            favoriteItems.forEach(item => favoritesContainer.appendChild(item));
-        });
-    });
     
     console.log('Favorites page initialization complete');
 }
