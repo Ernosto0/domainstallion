@@ -270,6 +270,7 @@ main {
 }
 
 .domain-card:hover {
+    display: flex;
     transform: translateY(-3px);
     box-shadow: 0 8px 20px rgba(0, 0, 0, 0.1);
     border-color: var(--gray-300);
@@ -1061,3 +1062,56 @@ main {
 #lengthSlider .noUi-handle::after {
     display: none;
 } 
+
+
+/* Dropdown styling */
+.dropdown-menu {
+    position: absolute;
+    border: none;
+    border-radius: var(--border-radius);
+    box-shadow: var(--box-shadow);
+    padding: 0.75rem 0;
+    min-width: 12rem;
+    margin-top: 0.5rem;
+    z-index: 1050; /* Higher z-index to appear above cards */
+    transform: none !important; /* Prevent inheriting transforms */
+}
+
+/* Prevent dropdown from being affected by parent hover */
+.dropdown.show {
+    z-index: 1050; /* Ensure dropdown container is above other elements */
+}
+
+/* Ensure buttons with dropdowns don't inherit transforms */
+.dropdown {
+    position: relative;
+    transform: none !important; /* Prevent inheriting transforms */
+}
+
+/* Modify domain card hover to prevent dropdown issues */
+.domain-card {
+    background: white;
+    border-radius: var(--border-radius);
+    padding: 1.5rem;
+    box-shadow: var(--box-shadow);
+    transition: var(--transition);
+    border: 1px solid var(--gray-200);
+    height: 100%;
+    position: relative; /* Add position relative */
+    overflow: visible !important; /* Ensure dropdowns aren't cut off */
+}
+
+.domain-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 8px 30px rgba(0, 0, 0, 0.12);
+    border-color: var(--primary-light);
+    z-index: 1; /* Add z-index to ensure proper stacking */
+}
+
+/* Ensure dropdown buttons don't inherit the hover transform */
+.domain-card .dropdown,
+.domain-card .dropdown-toggle,
+.domain-card .dropdown-menu {
+    transform: none !important;
+    transition: none !important;
+}

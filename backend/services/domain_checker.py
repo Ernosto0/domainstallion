@@ -6,6 +6,7 @@ import time
 import asyncio
 from typing import Tuple, Dict, Optional, List
 from .email_service import send_domain_availability_email
+from .porkbun_service import get_porkbun_pricing
 
 logger = logging.getLogger(__name__)
 
@@ -23,6 +24,9 @@ TCP_CONNECTOR = aiohttp.TCPConnector(limit=30, ssl=False, keepalive_timeout=30)
 
 # Global session that will be initialized once and reused
 _SESSION = None
+
+# Cache for Porkbun pricing data
+PORKBUN_PRICING = {}
 
 
 async def get_session():
@@ -134,6 +138,59 @@ async def check_domain_availability(
         }
 
         domain_result = await check_single_domain(full_domain, headers, session)
+
+        # Get Porkbun pricing if domain is available
+        if domain_result.get("available", False):
+            logger.info(f"Domain {full_domain} is available, fetching Porkbun pricing")
+            # Get Porkbun pricing data
+            global PORKBUN_PRICING
+            if not PORKBUN_PRICING:
+                logger.info("No cached Porkbun pricing data, fetching from API")
+                PORKBUN_PRICING = await get_porkbun_pricing()
+                logger.info(
+                    f"Porkbun pricing data retrieved, has error: {'error' in PORKBUN_PRICING}"
+                )
+            else:
+                logger.info("Using cached Porkbun pricing data")
+
+            # Add Porkbun pricing if available
+            if extension in PORKBUN_PRICING and "error" not in PORKBUN_PRICING:
+                logger.info(f"Found Porkbun pricing for extension .{extension}")
+                porkbun_price = PORKBUN_PRICING.get(extension, {}).get("registration")
+                logger.info(f"Porkbun price for .{extension}: {porkbun_price}")
+
+                if porkbun_price:
+                    # Add provider prices to the result
+                    if "providers" not in domain_result:
+                        domain_result["providers"] = {}
+
+                    # Add GoDaddy price to providers
+                    godaddy_price = domain_result.get("price_info", {}).get(
+                        "purchase", 0
+                    )
+                    domain_result["providers"]["godaddy"] = godaddy_price
+                    logger.info(f"Added GoDaddy price: {godaddy_price/1000000:.2f}")
+
+                    # Add Porkbun price to providers
+                    porkbun_price_converted = (
+                        float(porkbun_price) * 1000000
+                    )  # Convert to same format as GoDaddy
+                    domain_result["providers"]["porkbun"] = porkbun_price_converted
+                    logger.info(
+                        f"Added Porkbun price: {porkbun_price} (converted: {porkbun_price_converted/1000000:.2f})"
+                    )
+
+                    # Log the full providers object
+                    logger.info(f"Final providers object: {domain_result['providers']}")
+            else:
+                if "error" in PORKBUN_PRICING:
+                    logger.error(
+                        f"Porkbun pricing error: {PORKBUN_PRICING.get('error')}"
+                    )
+                else:
+                    logger.warning(
+                        f"No Porkbun pricing found for extension .{extension}"
+                    )
 
         # Add to cache
         add_to_cache(full_domain, domain_result)
@@ -252,6 +309,11 @@ async def check_multiple_domains(domains: List[str]) -> Dict[str, Dict]:
                             f"Bulk API returned data for {len(domains_data)} domains"
                         )
 
+                        # Get Porkbun pricing data for available domains
+                        global PORKBUN_PRICING
+                        if not PORKBUN_PRICING:
+                            PORKBUN_PRICING = await get_porkbun_pricing()
+
                         # Process the results
                         for domain_info in domains_data:
                             domain = domain_info.get("domain", "")
@@ -274,6 +336,38 @@ async def check_multiple_domains(domains: List[str]) -> Dict[str, Dict]:
                                 "price_info": price_info,
                                 "error": None,
                             }
+
+                            # Add provider pricing if domain is available
+                            if is_available:
+                                # Extract extension from domain
+                                parts = domain.split(".")
+                                if len(parts) > 1:
+                                    extension = parts[-1]
+
+                                    # Add provider prices
+                                    domain_result["providers"] = {}
+
+                                    # Add GoDaddy price
+                                    godaddy_price = price_info.get("purchase", 0)
+                                    domain_result["providers"][
+                                        "godaddy"
+                                    ] = godaddy_price
+
+                                    # Add Porkbun price if available
+                                    if (
+                                        extension in PORKBUN_PRICING
+                                        and "error" not in PORKBUN_PRICING
+                                    ):
+                                        porkbun_price = PORKBUN_PRICING.get(
+                                            extension, {}
+                                        ).get("registration")
+                                        if porkbun_price:
+                                            domain_result["providers"]["porkbun"] = (
+                                                float(porkbun_price) * 1000000
+                                            )  # Convert to same format as GoDaddy
+                                            logger.info(
+                                                f"Added Porkbun pricing for {domain}: ${porkbun_price}"
+                                            )
 
                             # Add to results and cache
                             results[domain] = domain_result
@@ -350,6 +444,11 @@ async def check_domains_individually(
     """
     logger.info(f"Checking {len(domains)} domains individually")
 
+    # Get Porkbun pricing data
+    global PORKBUN_PRICING
+    if not PORKBUN_PRICING:
+        PORKBUN_PRICING = await get_porkbun_pricing()
+
     # Process domains in smaller batches to avoid overwhelming the API
     batch_size = 5
     for i in range(0, len(domains), batch_size):
@@ -364,6 +463,39 @@ async def check_domains_individually(
         for domain, task in tasks:
             try:
                 domain_result = await task
+
+                # Add provider pricing if domain is available
+                if domain_result.get("available", False):
+                    # Extract extension from domain
+                    parts = domain.split(".")
+                    if len(parts) > 1:
+                        extension = parts[-1]
+
+                        # Add provider prices
+                        domain_result["providers"] = {}
+
+                        # Add GoDaddy price
+                        godaddy_price = domain_result.get("price_info", {}).get(
+                            "purchase", 0
+                        )
+                        domain_result["providers"]["godaddy"] = godaddy_price
+
+                        # Add Porkbun price if available
+                        if (
+                            extension in PORKBUN_PRICING
+                            and "error" not in PORKBUN_PRICING
+                        ):
+                            porkbun_price = PORKBUN_PRICING.get(extension, {}).get(
+                                "registration"
+                            )
+                            if porkbun_price:
+                                domain_result["providers"]["porkbun"] = (
+                                    float(porkbun_price) * 1000000
+                                )  # Convert to same format as GoDaddy
+                                logger.info(
+                                    f"Added Porkbun pricing for {domain}: ${porkbun_price}"
+                                )
+
                 results[domain] = domain_result
                 add_to_cache(domain, domain_result)
             except Exception as e:

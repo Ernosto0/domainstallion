@@ -101,7 +101,6 @@ class BrandGenerator:
 
         self.domain_scorer = DomainScorer()
 
-
     async def generate_names(
         self,
         keywords,
@@ -368,6 +367,12 @@ class BrandGenerator:
                                 price_info = domain_info.get("price_info")
                                 error = domain_info.get("error")
 
+                                # Get provider prices if available
+                                providers = domain_info.get("providers", {})
+                                logger.info(
+                                    f"Provider information for {domain}: {providers}"
+                                )
+
                                 # Get score from cache
                                 score_key = f"{name}:{ext}"
                                 domain_score = domain_scores_cache.get(score_key)
@@ -426,6 +431,7 @@ class BrandGenerator:
                                     "price": price_display,
                                     "score": domain_score,
                                     "error": error,
+                                    "providers": providers,  # Add providers to the result
                                 }
 
                                 chunk_results.append(result)
@@ -452,17 +458,28 @@ class BrandGenerator:
                             name = result["name"]
                             if name not in name_results:
                                 name_results[name] = {"name": name, "domains": {}}
+
+                            # Log the providers information before adding to the result
+                            logger.info(
+                                f"Adding providers for {result['domain']}: {result.get('providers', {})}"
+                            )
+
                             name_results[name]["domains"][result["ext"]] = {
                                 "domain": result["domain"],
                                 "available": result["available"],
                                 "price": result["price"],
                                 "score": result["score"],
                                 "error": result["error"],
+                                "providers": result.get(
+                                    "providers", {}
+                                ),  # Add providers to the domain info
                             }
-                            # Log the score data being added
-                            logger.debug(
-                                f"Adding score for {result['domain']}: {result['score']}"
+
+                            # Log the final domain info with providers
+                            logger.info(
+                                f"Final domain info for {result['domain']}: {name_results[name]['domains'][result['ext']]}"
                             )
+
                         except Exception as result_error:
                             logger.error(
                                 f"Error processing result: {str(result_error)}"

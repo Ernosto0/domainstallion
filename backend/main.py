@@ -165,6 +165,9 @@ class DomainInfo(BaseModel):
     score: Dict[
         str, Any
     ]  # Add score field to match what we're sending from the backend
+    providers: Optional[Dict[str, Any]] = (
+        None  # Add providers field to include provider pricing
+    )
 
 
 class BrandResponse(BaseModel):
@@ -388,6 +391,18 @@ async def generate_names(request: BrandRequest):
             if result["name"].lower()
             not in [name.lower() for name in request.exclude_names]
         ][: request.num_suggestions]
+
+        # Log a sample of the results to check provider information
+        if filtered_results:
+            sample_result = filtered_results[0]
+            logger.info(f"Sample result being returned to frontend: {sample_result}")
+
+            # Check if any domains have provider information
+            for domain_ext, domain_info in sample_result.get("domains", {}).items():
+                providers = domain_info.get("providers", {})
+                logger.info(
+                    f"Providers for {sample_result['name']}.{domain_ext}: {providers}"
+                )
 
         logger.debug(f"Returning {len(filtered_results)} filtered results")
         return filtered_results
@@ -624,13 +639,62 @@ async def test_domain_checker(domain: str):
             domain_name, extension
         )
 
+        # Get the cached result to check providers
+        from backend.services.domain_checker import get_from_cache
+
+        cached_result = get_from_cache(domain)
+        providers = cached_result.get("providers", {}) if cached_result else {}
+
+        logging.info(f"Test domain checker result for {domain}:")
+        logging.info(f"Available: {is_available}")
+        logging.info(f"Price info: {price_info}")
+        logging.info(f"Providers: {providers}")
+
         # Return the result
         return {
             "domain": domain,
             "available": is_available,
             "price_info": price_info,
+            "providers": providers,
             "timestamp": time.time(),
         }
     except Exception as e:
         logging.error(f"Error testing domain checker: {str(e)}")
+        return {"error": str(e)}
+
+
+@app.get("/api/test-providers")
+async def test_providers():
+    """
+    Test endpoint to check if provider information is being correctly passed to the frontend
+    """
+    try:
+        # Create a test domain with provider information
+        test_domain = {
+            "domain": "test.com",
+            "available": True,
+            "price": "$10.99",
+            "score": {
+                "total_score": 80,
+                "details": {
+                    "length": {"score": 80, "description": "Good length"},
+                    "dictionary": {"score": 80, "description": "Contains real words"},
+                    "pronounceability": {
+                        "score": 80,
+                        "description": "Easy to pronounce",
+                    },
+                    "repetition": {"score": 80, "description": "No letter repetition"},
+                    "tld": {"score": 80, "description": "Popular TLD"},
+                },
+            },
+            "providers": {"godaddy": 10990000, "porkbun": 8990000},
+        }
+
+        # Create a test brand response
+        test_brand = {"name": "test", "domains": {"com": test_domain}}
+
+        logging.info(f"Test providers endpoint response: {test_brand}")
+        return [test_brand]
+    except Exception as e:
+        logging.error(f"Error in test providers endpoint: {str(e)}")
         return {"error": str(e)}

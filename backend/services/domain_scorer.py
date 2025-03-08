@@ -219,13 +219,6 @@ class DomainScorer:
             repetition_score = self.get_repeated_letter_score(name)
             tld_score = self.get_tld_score(tld)
 
-            # Log individual scores
-            logger.debug(f"Scoring domain: {domain_name}.{tld}")
-            logger.debug(f"Length score: {length_score}")
-            logger.debug(f"Dictionary score: {dictionary_score}")
-            logger.debug(f"Pronounceability score: {pronounce_score}")
-            logger.debug(f"Repetition score: {repetition_score}")
-            logger.debug(f"TLD score: {tld_score}")
 
             # Calculate weighted average
             total_score = (
@@ -239,7 +232,7 @@ class DomainScorer:
             # Round to nearest whole number
             total_score = round(total_score)
 
-            logger.debug(f"Total score: {total_score}")
+
 
             return {
                 "total_score": total_score,

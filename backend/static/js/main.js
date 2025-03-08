@@ -226,7 +226,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
 
                 const data = await response.json();
-                console.log('Raw API Response:', data);
+                console.log('Raw API Response:', JSON.stringify(data, null, 2));
 
                 // Remove the additional loading indicator if it exists
                 const moreLoading = document.getElementById('moreLoading');
@@ -236,7 +236,18 @@ document.addEventListener('DOMContentLoaded', function() {
                 
                 // Process each brand
                 data.forEach((brand, index) => {
-                    console.log(`Processing brand ${index + 1}:`, brand);
+                    console.log(`Processing brand ${index + 1}:`, JSON.stringify(brand, null, 2));
+                    
+                    // Check for provider information in each domain
+                    for (const [ext, domainInfo] of Object.entries(brand.domains)) {
+                        console.log(`Domain ${brand.name}.${ext} providers:`, domainInfo.providers);
+                        if (domainInfo.providers) {
+                            console.log(`Provider keys for ${brand.name}.${ext}:`, Object.keys(domainInfo.providers));
+                            if (domainInfo.providers.porkbun) {
+                                console.log(`Porkbun price for ${brand.name}.${ext}: ${domainInfo.providers.porkbun}`);
+                            }
+                        }
+                    }
                     
                     // Create brand card container
                     const brandCardContainer = document.createElement('div');
@@ -295,10 +306,14 @@ document.addEventListener('DOMContentLoaded', function() {
                                             </button>
                                             <ul class="dropdown-menu dropdown-menu-end provider-dropdown">
                                                 <li><h6 class="dropdown-header">Choose Provider</h6></li>
-                                                <li><a class="dropdown-item provider-option" href="#" data-provider="godaddy" data-domain="${brand.name}.com">GoDaddy</a></li>
+                                                <li><a class="dropdown-item provider-option" href="#" data-provider="godaddy" data-domain="${brand.name}.com">
+                                                    GoDaddy ${brand.domains.com?.providers?.godaddy ? `$${(brand.domains.com.providers.godaddy/1000000).toFixed(2)}` : ''}
+                                                </a></li>
+                                                <li><a class="dropdown-item provider-option" href="#" data-provider="porkbun" data-domain="${brand.name}.com">
+                                                    Porkbun ${brand.domains.com?.providers?.porkbun ? `$${(brand.domains.com.providers.porkbun/1000000).toFixed(2)}` : ''}
+                                                </a></li>
                                                 <li><a class="dropdown-item provider-option" href="#" data-provider="namespace" data-domain="${brand.name}.com">Namespace</a></li>
                                                 <li><a class="dropdown-item provider-option" href="#" data-provider="namecheap" data-domain="${brand.name}.com">Namecheap</a></li>
-                                                <li><a class="dropdown-item provider-option" href="#" data-provider="porkbun" data-domain="${brand.name}.com">Porkbun</a></li>
                                             </ul>
                                         </div>
                                         <button class="btn btn-sm btn-outline-dark flex-grow-1"
@@ -814,8 +829,29 @@ async function addToFavorites(event, brandName, domainName, extension, price) {
     const cleanDomainName = domainName.replace(`.${extension}`, '');
     
     // Get the score data from the domain card
-    const domainCard = event.target.closest('.domain-card');
+    const domainCard = event.target.closest('.domain-card') || event.target.closest('.brand-card');
     const totalScore = parseInt(domainCard.querySelector('.score-value').textContent);
+    
+    // Check if there's a selected provider and get its price
+    let currentPrice = price;
+    const registerBtn = domainCard.querySelector('.register-domain-btn');
+    if (registerBtn) {
+        const selectedProvider = registerBtn.getAttribute('data-provider');
+        if (selectedProvider) {
+            console.log(`Selected provider: ${selectedProvider}`);
+            
+            // Get the price from the domain badge
+            const domainBadge = domainCard.querySelector('.domain-badge');
+            if (domainBadge && domainBadge.classList.contains('domain-available')) {
+                const priceMatch = domainBadge.textContent.match(/\$[\d.]+/);
+                if (priceMatch) {
+                    currentPrice = priceMatch[0];
+                    console.log(`Using current price from selected provider: ${currentPrice}`);
+                }
+            }
+        }
+    }
+    
     const scoreDetails = domainCard.querySelectorAll('.score-item');
     
     // Extract individual scores
@@ -862,9 +898,13 @@ async function addToFavorites(event, brandName, domainName, extension, price) {
                 brand_name: brandName,
                 domain_name: cleanDomainName,
                 domain_extension: extension,
-                price: price,
+                price: currentPrice,
                 total_score: totalScore,
-                ...scores
+                length_score: scores.length_score,
+                dictionary_score: scores.dictionary_score,
+                pronounceability_score: scores.pronounceability_score,
+                repetition_score: scores.repetition_score,
+                tld_score: scores.tld_score
             })
         });
 
@@ -1004,7 +1044,7 @@ function getDomainProviderUrl(provider, domain) {
 
 // Update the createDomainCard function to not show score details for non-.com domains
 function createDomainCard(brandName, ext, info, isFirstVariant = true) {
-    console.log(`Creating domain card for ${brandName}.${ext}:`, info);
+    console.log(`Creating domain card for ${brandName}.${ext}:`, JSON.stringify(info, null, 2));
     
     const domainCard = document.createElement('div');
     domainCard.className = 'domain-card';
@@ -1035,6 +1075,41 @@ function createDomainCard(brandName, ext, info, isFirstVariant = true) {
     } else if (score.total_score >= 20) {
         scoreColor = '#fd7e14'; // Orange for low scores
     }
+    
+    // Get provider information if available
+    const providers = info.providers || {};
+    console.log(`Provider information for ${brandName}.${ext}:`, providers);
+    console.log(`Provider keys for ${brandName}.${ext}:`, Object.keys(providers));
+    
+    // Format provider prices
+    const formatPrice = (price) => {
+        console.log(`Formatting price: ${price}, type: ${typeof price}`);
+        if (price === undefined || price === null) return 'N/A';
+        return `$${(price/1000000).toFixed(2)}`;
+    };
+    
+    // Create provider dropdown items with prices
+    let providerDropdownItems = '';
+    
+    // Default GoDaddy option (always show)
+    const godaddyPrice = formatPrice(providers.godaddy);
+    console.log(`GoDaddy price for ${brandName}.${ext}: ${godaddyPrice} (raw: ${providers.godaddy})`);
+    providerDropdownItems += `<li><a class="dropdown-item provider-option" href="#" data-provider="godaddy" data-domain="${brandName}.${ext}">GoDaddy ${godaddyPrice}</a></li>`;
+    
+    // Porkbun option (if price available)
+    console.log(`Checking Porkbun price for ${brandName}.${ext}: ${providers.porkbun}`);
+    if (providers.porkbun !== undefined) {
+        const porkbunPrice = formatPrice(providers.porkbun);
+        console.log(`Porkbun price for ${brandName}.${ext}: ${porkbunPrice} (raw: ${providers.porkbun})`);
+        providerDropdownItems += `<li><a class="dropdown-item provider-option" href="#" data-provider="porkbun" data-domain="${brandName}.${ext}">Porkbun ${porkbunPrice}</a></li>`;
+    } else {
+        console.log(`No Porkbun price available for ${brandName}.${ext}`);
+        providerDropdownItems += `<li><a class="dropdown-item provider-option" href="#" data-provider="porkbun" data-domain="${brandName}.${ext}">Porkbun</a></li>`;
+    }
+    
+    // Other providers (without pricing for now)
+    providerDropdownItems += `<li><a class="dropdown-item provider-option" href="#" data-provider="namespace" data-domain="${brandName}.${ext}">Namespace</a></li>`;
+    providerDropdownItems += `<li><a class="dropdown-item provider-option" href="#" data-provider="namecheap" data-domain="${brandName}.${ext}">Namecheap</a></li>`;
     
     // Create the base HTML structure with improved layout
     domainCard.innerHTML = `
@@ -1069,10 +1144,7 @@ function createDomainCard(brandName, ext, info, isFirstVariant = true) {
                     </button>
                     <ul class="dropdown-menu dropdown-menu-end provider-dropdown">
                         <li><h6 class="dropdown-header">Choose Provider</h6></li>
-                        <li><a class="dropdown-item provider-option" href="#" data-provider="godaddy" data-domain="${brandName}.${ext}">GoDaddy</a></li>
-                        <li><a class="dropdown-item provider-option" href="#" data-provider="namespace" data-domain="${brandName}.${ext}">Namespace</a></li>
-                        <li><a class="dropdown-item provider-option" href="#" data-provider="namecheap" data-domain="${brandName}.${ext}">Namecheap</a></li>
-                        <li><a class="dropdown-item provider-option" href="#" data-provider="porkbun" data-domain="${brandName}.${ext}">Porkbun</a></li>
+                        ${providerDropdownItems}
                     </ul>
                 </div>
                 <button class="btn btn-sm favorite-btn"
@@ -1223,9 +1295,19 @@ function initializeProviderDropdowns() {
             // Update the button with the provider icon
             updateRegisterButtonIcon(registerBtn, provider);
             
+            // Get the price from the dropdown item text
+            let price = 'N/A';
+            const priceMatch = e.target.textContent.match(/\$[\d.]+/);
+            if (priceMatch) {
+                price = priceMatch[0];
+            }
+            
+            // Update the price display on the domain card
+            updateDomainCardPrice(domain, price, provider);
+            
             // Show a toast notification to inform the user
             const providerName = provider.charAt(0).toUpperCase() + provider.slice(1);
-            showToast(`${providerName} selected for domain registration`, 'info');
+            showToast(`${providerName} selected for domain registration (${price})`, 'info');
             
             // Close the dropdown
             const dropdownToggle = btnGroup.querySelector('.dropdown-toggle');
@@ -1239,6 +1321,79 @@ function initializeProviderDropdowns() {
     });
     
     console.log('Provider dropdowns initialized');
+}
+
+// Function to update the price display on the domain card
+function updateDomainCardPrice(domain, price, provider) {
+    console.log(`Updating price for ${domain} to ${price} (${provider})`);
+    
+    // Find all domain cards that match this domain
+    const domainCards = document.querySelectorAll('.domain-card');
+    
+    domainCards.forEach(card => {
+        const domainNameElement = card.querySelector('.domain-name');
+        if (domainNameElement && domainNameElement.textContent === domain) {
+            console.log(`Found domain card for ${domain}`);
+            
+            // Update the price in the domain badge
+            const domainBadge = card.querySelector('.domain-badge');
+            if (domainBadge && domainBadge.classList.contains('domain-available')) {
+                // Extract the original "Available" text and replace the price
+                const badgeText = domainBadge.textContent.trim();
+                const newBadgeText = badgeText.replace(/\$[\d.]+/, price);
+                
+                // If there was no price before, add it
+                if (newBadgeText === badgeText && !newBadgeText.includes(price)) {
+                    domainBadge.textContent = `Available - ${price}`;
+                } else {
+                    domainBadge.textContent = newBadgeText;
+                }
+                
+                console.log(`Updated price display to: ${domainBadge.textContent}`);
+            }
+            
+            // Also update the provider icon and name in the register button
+            const registerBtn = card.querySelector('.register-domain-btn');
+            if (registerBtn) {
+                registerBtn.setAttribute('data-provider', provider);
+                updateRegisterButtonIcon(registerBtn, provider);
+            }
+        }
+    });
+    
+    // Also check for brand cards (the main cards with the domain in the header)
+    const brandCards = document.querySelectorAll('.brand-card');
+    
+    brandCards.forEach(card => {
+        const domainNameElement = card.querySelector('h3');
+        if (domainNameElement && domainNameElement.textContent === domain) {
+            console.log(`Found brand card for ${domain}`);
+            
+            // Update the price in the domain badge
+            const domainBadge = card.querySelector('.domain-badge');
+            if (domainBadge && domainBadge.classList.contains('domain-available')) {
+                // Extract the original "Available" text and replace the price
+                const badgeText = domainBadge.textContent.trim();
+                const newBadgeText = badgeText.replace(/\$[\d.]+/, price);
+                
+                // If there was no price before, add it
+                if (newBadgeText === badgeText && !newBadgeText.includes(price)) {
+                    domainBadge.textContent = `Available - ${price}`;
+                } else {
+                    domainBadge.textContent = newBadgeText;
+                }
+                
+                console.log(`Updated price display to: ${domainBadge.textContent}`);
+            }
+            
+            // Also update the provider icon and name in the register button
+            const registerBtn = card.querySelector('.register-domain-btn');
+            if (registerBtn) {
+                registerBtn.setAttribute('data-provider', provider);
+                updateRegisterButtonIcon(registerBtn, provider);
+            }
+        }
+    });
 }
 
 // Function to update the register button with the provider icon
@@ -1260,8 +1415,8 @@ function updateRegisterButtonIcon(button, provider) {
             iconPath = '/static/css/images/godaddy.ico'; // Default to godaddy for now
             break;
         case 'porkbun':
-            // Use a default icon or placeholder for providers without specific icons
-            iconPath = '/static/css/images/godaddy.ico'; // Default to godaddy for now
+            // Use Porkbun icon
+            iconPath = '/static/css/images/porkbun.ico';
             break;
         default:
             iconPath = '/static/css/images/godaddy.ico';
