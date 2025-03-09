@@ -1037,6 +1037,8 @@ function getDomainProviderUrl(provider, domain) {
             return `https://www.name.com/domain/search/${domain}`;
         case 'dynadot':
             return `https://www.dynadot.com/domain/search?domain=${domain}`;
+        case 'namesilo':
+            return `https://www.namesilo.com/domain/search-domains?query=${domain}`;
         default:
             return `https://www.godaddy.com/domainsearch/find?domainToCheck=${domain}`;
     }
@@ -1116,6 +1118,17 @@ function createDomainCard(brandName, ext, info, isFirstVariant = true) {
     } else {
         console.log(`No Dynadot price available for ${brandName}.${ext}`);
         providerDropdownItems += `<li><a class="dropdown-item provider-option" href="#" data-provider="dynadot" data-domain="${brandName}.${ext}">Dynadot</a></li>`;
+    }
+    
+    // Namesilo option (if price available)
+    console.log(`Checking Namesilo price for ${brandName}.${ext}: ${providers.namesilo}`);
+    if (providers.namesilo !== undefined) {
+        const namesiloPrice = formatPrice(providers.namesilo);
+        console.log(`Namesilo price for ${brandName}.${ext}: ${namesiloPrice} (raw: ${providers.namesilo})`);
+        providerDropdownItems += `<li><a class="dropdown-item provider-option" href="#" data-provider="namesilo" data-domain="${brandName}.${ext}">Namesilo ${namesiloPrice}</a></li>`;
+    } else {
+        console.log(`No Namesilo price available for ${brandName}.${ext}`);
+        providerDropdownItems += `<li><a class="dropdown-item provider-option" href="#" data-provider="namesilo" data-domain="${brandName}.${ext}">Namesilo</a></li>`;
     }
     
     // Other providers (without pricing for now)
@@ -1429,6 +1442,9 @@ function updateRegisterButtonIcon(button, provider) {
             break;
         case 'dynadot':
             iconPath = '/static/css/images/dynadot.ico';
+            break;
+        case 'namesilo':
+            iconPath = '/static/css/images/namesilo.ico';
             break;
         default:
             iconPath = '/static/css/images/godaddy.ico';

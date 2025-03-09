@@ -12,6 +12,7 @@ from .dynadot_service import (
     check_dynadot_domains,
     check_dynadot_domain,
 )
+from .namesilo_service import get_namesilo_pricing
 
 logger = logging.getLogger(__name__)
 
@@ -33,6 +34,7 @@ _SESSION = None
 # Cache for provider pricing data
 PORKBUN_PRICING = {}
 DYNADOT_PRICING = {}
+NAMESILO_PRICING = {}
 
 
 async def get_session():
@@ -103,7 +105,7 @@ async def check_domain_availability(
     Returns a tuple of (is_available, price_info)
     If notify_email is provided, sends an email notification when domain is available
     """
-    global PORKBUN_PRICING, DYNADOT_PRICING
+    global PORKBUN_PRICING, DYNADOT_PRICING, NAMESILO_PRICING
 
     full_domain = f"{domain_name}.{extension}"
     logger.info(f"Checking availability for domain: {full_domain}")
@@ -151,12 +153,14 @@ async def check_domain_availability(
         if domain_result.get("available", False):
             logger.info(f"Domain {full_domain} is available, fetching pricing data")
 
-            # Ensure we have the pricing data from both providers
+            # Ensure we have the pricing data from all providers
             pricing_tasks = []
             if not PORKBUN_PRICING:
                 pricing_tasks.append(get_porkbun_pricing())
             if not DYNADOT_PRICING:
                 pricing_tasks.append(get_dynadot_pricing())
+            if not NAMESILO_PRICING:
+                pricing_tasks.append(get_namesilo_pricing())
 
             if pricing_tasks:
                 # Run pricing data fetching concurrently
@@ -180,6 +184,16 @@ async def check_domain_availability(
                     )
                     if result and not isinstance(result, Exception):
                         DYNADOT_PRICING = result
+                    pricing_index += 1
+
+                if not NAMESILO_PRICING:
+                    result = (
+                        pricing_results[pricing_index]
+                        if pricing_index < len(pricing_results)
+                        else None
+                    )
+                    if result and not isinstance(result, Exception):
+                        NAMESILO_PRICING = result
 
             # Check with Dynadot for this specific domain
             dynadot_result = await check_dynadot_domain(full_domain)
@@ -227,6 +241,21 @@ async def check_domain_availability(
                     )  # Convert to same format as GoDaddy
                     logger.info(f"Added Dynadot price from cache: {dynadot_price}")
 
+            # Add Namesilo price if available
+            if extension in NAMESILO_PRICING and "error" not in NAMESILO_PRICING:
+                logger.info(f"Found Namesilo pricing for extension .{extension}")
+                namesilo_price = NAMESILO_PRICING.get(extension, {}).get("registration")
+                logger.info(f"Namesilo price for .{extension}: {namesilo_price}")
+
+                if namesilo_price and namesilo_price != "N/A":
+                    namesilo_price_converted = (
+                        float(namesilo_price) * 1000000
+                    )  # Convert to same format as GoDaddy
+                    domain_result["providers"]["namesilo"] = namesilo_price_converted
+                    logger.info(
+                        f"Added Namesilo price: {namesilo_price} (converted: {namesilo_price_converted/1000000:.2f})"
+                    )
+
             # Log the full providers object
             logger.info(f"Final providers object: {domain_result.get('providers', {})}")
 
@@ -265,7 +294,7 @@ async def check_multiple_domains(domains: List[str]) -> Dict[str, Dict]:
     Returns:
         Dictionary mapping domain names to their availability info
     """
-    global PORKBUN_PRICING, DYNADOT_PRICING
+    global PORKBUN_PRICING, DYNADOT_PRICING, NAMESILO_PRICING
 
     if not domains:
         return {}
@@ -410,6 +439,8 @@ async def check_multiple_domains(domains: List[str]) -> Dict[str, Dict]:
                                 pricing_tasks.append(get_porkbun_pricing())
                             if not DYNADOT_PRICING:
                                 pricing_tasks.append(get_dynadot_pricing())
+                            if not NAMESILO_PRICING:
+                                pricing_tasks.append(get_namesilo_pricing())
 
                             if pricing_tasks:
                                 # Run pricing data fetching concurrently
@@ -433,6 +464,16 @@ async def check_multiple_domains(domains: List[str]) -> Dict[str, Dict]:
                                     )
                                     if result and not isinstance(result, Exception):
                                         DYNADOT_PRICING = result
+                                    pricing_index += 1
+
+                                if not NAMESILO_PRICING:
+                                    result = (
+                                        pricing_results[pricing_index]
+                                        if pricing_index < len(pricing_results)
+                                        else None
+                                    )
+                                    if result and not isinstance(result, Exception):
+                                        NAMESILO_PRICING = result
 
                             # Check domains with both providers concurrently
                             logger.info(
@@ -497,6 +538,25 @@ async def check_multiple_domains(domains: List[str]) -> Dict[str, Dict]:
                                             )  # Convert to same format as GoDaddy
                                             logger.info(
                                                 f"Added Dynadot pricing from cache for {domain}: ${dynadot_price}"
+                                            )
+
+                                    # Add Namesilo price if available
+                                    if (
+                                        extension in NAMESILO_PRICING
+                                        and "error" not in NAMESILO_PRICING
+                                    ):
+                                        namesilo_price = NAMESILO_PRICING.get(
+                                            extension, {}
+                                        ).get("registration")
+                                        if namesilo_price and namesilo_price != "N/A":
+                                            logger.info(
+                                                f"Using Namesilo price for .{extension}: {namesilo_price}"
+                                            )
+                                            domain_result["providers"]["namesilo"] = (
+                                                float(namesilo_price) * 1000000
+                                            )  # Convert to same format as GoDaddy
+                                            logger.info(
+                                                f"Added Namesilo pricing for {domain}: ${namesilo_price}"
                                             )
 
                         # Add all results to the final results dictionary and cache
@@ -573,7 +633,7 @@ async def check_domains_individually(
         headers: API request headers
         session: aiohttp ClientSession to use
     """
-    global PORKBUN_PRICING, DYNADOT_PRICING
+    global PORKBUN_PRICING, DYNADOT_PRICING, NAMESILO_PRICING
 
     logger.info(f"Checking {len(domains)} domains individually")
 
@@ -586,6 +646,8 @@ async def check_domains_individually(
         pricing_tasks.append(get_porkbun_pricing())
     if not DYNADOT_PRICING:
         pricing_tasks.append(get_dynadot_pricing())
+    if not NAMESILO_PRICING:
+        pricing_tasks.append(get_namesilo_pricing())
 
     if pricing_tasks:
         # Run pricing data fetching concurrently
@@ -607,6 +669,16 @@ async def check_domains_individually(
             )
             if result and not isinstance(result, Exception):
                 DYNADOT_PRICING = result
+            pricing_index += 1
+
+        if not NAMESILO_PRICING:
+            result = (
+                pricing_results[pricing_index]
+                if pricing_index < len(pricing_results)
+                else None
+            )
+            if result and not isinstance(result, Exception):
+                NAMESILO_PRICING = result
 
     # Process domains in smaller batches to avoid overwhelming the API
     batch_size = 5
@@ -712,6 +784,22 @@ async def check_domains_individually(
                         )  # Convert to same format as GoDaddy
                         logger.info(
                             f"Added Dynadot pricing from cache for {domain}: ${dynadot_price}"
+                        )
+
+                # Add Namesilo price if available
+                if extension in NAMESILO_PRICING and "error" not in NAMESILO_PRICING:
+                    namesilo_price = NAMESILO_PRICING.get(extension, {}).get(
+                        "registration"
+                    )
+                    if namesilo_price and namesilo_price != "N/A":
+                        logger.info(
+                            f"Using Namesilo price for .{extension}: {namesilo_price}"
+                        )
+                        domain_result["providers"]["namesilo"] = (
+                            float(namesilo_price) * 1000000
+                        )  # Convert to same format as GoDaddy
+                        logger.info(
+                            f"Added Namesilo pricing for {domain}: ${namesilo_price}"
                         )
 
     # Add all results to the final results dictionary and cache
