@@ -1038,7 +1038,7 @@ function getDomainProviderUrl(provider, domain) {
         case 'dynadot':
             return `https://www.dynadot.com/domain/search?domain=${domain}`;
         case 'namesilo':
-            return `https://www.namesilo.com/domain/search-domains?query=${domain}`;
+            return `https://www.namesilo.com/domain/search-domains?rid=e5cc231ahquery=${domain}`;
         default:
             return `https://www.godaddy.com/domainsearch/find?domainToCheck=${domain}`;
     }
