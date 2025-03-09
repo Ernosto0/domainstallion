@@ -1029,14 +1029,14 @@ async function addToWatchlist(event, brandName, domainName, extension) {
 // Function to get the URL for a specific domain provider
 function getDomainProviderUrl(provider, domain) {
     switch(provider.toLowerCase()) {
-        case 'godaddy':
-            return `https://www.godaddy.com/domainsearch/find?domainToCheck=${domain}`;
-        case 'namespace':
-            return `https://www.namespace.com/domain/search/${domain}`;
-        case 'namecheap':
-            return `https://www.namecheap.com/domains/registration/results/?domain=${domain}`;
         case 'porkbun':
             return `https://porkbun.com/checkout/search?q=${domain}`;
+        case 'namecheap':
+            return `https://www.namecheap.com/domains/registration/results/?domain=${domain}`;
+        case 'namespace':
+            return `https://www.name.com/domain/search/${domain}`;
+        case 'dynadot':
+            return `https://www.dynadot.com/domain/search?domain=${domain}`;
         default:
             return `https://www.godaddy.com/domainsearch/find?domainToCheck=${domain}`;
     }
@@ -1105,6 +1105,17 @@ function createDomainCard(brandName, ext, info, isFirstVariant = true) {
     } else {
         console.log(`No Porkbun price available for ${brandName}.${ext}`);
         providerDropdownItems += `<li><a class="dropdown-item provider-option" href="#" data-provider="porkbun" data-domain="${brandName}.${ext}">Porkbun</a></li>`;
+    }
+    
+    // Dynadot option (if price available)
+    console.log(`Checking Dynadot price for ${brandName}.${ext}: ${providers.dynadot}`);
+    if (providers.dynadot !== undefined) {
+        const dynadotPrice = formatPrice(providers.dynadot);
+        console.log(`Dynadot price for ${brandName}.${ext}: ${dynadotPrice} (raw: ${providers.dynadot})`);
+        providerDropdownItems += `<li><a class="dropdown-item provider-option" href="#" data-provider="dynadot" data-domain="${brandName}.${ext}">Dynadot ${dynadotPrice}</a></li>`;
+    } else {
+        console.log(`No Dynadot price available for ${brandName}.${ext}`);
+        providerDropdownItems += `<li><a class="dropdown-item provider-option" href="#" data-provider="dynadot" data-domain="${brandName}.${ext}">Dynadot</a></li>`;
     }
     
     // Other providers (without pricing for now)
@@ -1407,16 +1418,17 @@ function updateRegisterButtonIcon(button, provider) {
         case 'godaddy':
             iconPath = '/static/css/images/godaddy.ico';
             break;
+        case 'porkbun':
+            iconPath = '/static/css/images/porkbun.ico';
+            break;
         case 'namecheap':
             iconPath = '/static/css/images/namecheap.ico';
             break;
         case 'namespace':
-            // Use a default icon or placeholder for providers without specific icons
-            iconPath = '/static/css/images/godaddy.ico'; // Default to godaddy for now
+            iconPath = '/static/css/images/namespace.ico';
             break;
-        case 'porkbun':
-            // Use Porkbun icon
-            iconPath = '/static/css/images/porkbun.ico';
+        case 'dynadot':
+            iconPath = '/static/css/images/dynadot.ico';
             break;
         default:
             iconPath = '/static/css/images/godaddy.ico';

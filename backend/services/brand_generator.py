@@ -369,9 +369,10 @@ class BrandGenerator:
 
                                 # Get provider prices if available
                                 providers = domain_info.get("providers", {})
-                                logger.info(
-                                    f"Provider information for {domain}: {providers}"
-                                )
+                                if is_available:
+                                    logger.info(
+                                        f"Provider information for {domain}: {providers}"
+                                    )
 
                                 # Get score from cache
                                 score_key = f"{name}:{ext}"
@@ -460,9 +461,10 @@ class BrandGenerator:
                                 name_results[name] = {"name": name, "domains": {}}
 
                             # Log the providers information before adding to the result
-                            logger.info(
-                                f"Adding providers for {result['domain']}: {result.get('providers', {})}"
-                            )
+                            if result["available"]:
+                                logger.info(
+                                    f"Adding providers for {result['domain']}: {result.get('providers', {})}"
+                                )
 
                             name_results[name]["domains"][result["ext"]] = {
                                 "domain": result["domain"],
@@ -476,9 +478,10 @@ class BrandGenerator:
                             }
 
                             # Log the final domain info with providers
-                            logger.info(
-                                f"Final domain info for {result['domain']}: {name_results[name]['domains'][result['ext']]}"
-                            )
+                            if result["available"]:
+                                logger.info(
+                                    f"Final domain info for {result['domain']}: {name_results[name]['domains'][result['ext']]}"
+                                )
 
                         except Exception as result_error:
                             logger.error(

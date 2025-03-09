@@ -28,6 +28,7 @@ async def get_porkbun_pricing() -> Dict:
     """
     global PORKBUN_PRICING_CACHE, CACHE_TIMESTAMP
     import time
+
     print("AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA")
     # Check if we have cached data that's still valid
     current_time = time.time()
