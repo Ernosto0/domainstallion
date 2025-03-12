@@ -34,6 +34,7 @@ from .auth import (
 from .google_auth import router as google_auth_router
 from backend.services.brand_generator import BrandGenerator
 from backend.services.trademark_checker import check_trademark
+from backend.services.social_media_checker import check_social_media
 from backend.schemas import WatchlistItemCreate, WatchlistItem
 from .tasks import check_watchlist_domains
 from .rate_limiter import (
@@ -613,6 +614,18 @@ async def get_watchlist(
 async def check_trademark_endpoint(request: Request, domain: str):
     try:
         result = await check_trademark(domain)
+        return result
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/check-social-media/{username}")
+@rate_limit(
+    calls=20, period=3600
+)  # 20 requests per hour due to potential rate limiting from social platforms
+async def check_social_media_endpoint(request: Request, username: str):
+    try:
+        result = await check_social_media(username)
         return result
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
