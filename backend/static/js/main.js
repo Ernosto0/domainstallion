@@ -317,8 +317,8 @@ document.addEventListener('DOMContentLoaded', function() {
                                             </ul>
                                         </div>
                                         <button class="btn btn-sm btn-outline-dark flex-grow-1"
-                                                onclick="checkTrademark(event, '${brand.name}')">
-                                            <i class="bi bi-bank"></i> Check Trademark
+                                                onclick="checkSocialMedia(event, '${brand.name}')">
+                                            <i class="bi bi-at"></i> Check Social Media
                                         </button>
                                     </div>
                                     <button class="btn btn-sm btn-outline-success favorite-btn"
@@ -337,8 +337,8 @@ document.addEventListener('DOMContentLoaded', function() {
                                         <i class="bi bi-eye"></i> Add to Watchlist
                                     </button>
                                     <button class="btn btn-sm btn-outline-dark flex-grow-1"
-                                            onclick="checkTrademark(event, '${brand.name}')">
-                                        <i class="bi bi-bank"></i> Check Trademark
+                                            onclick="checkSocialMedia(event, '${brand.name}')">
+                                        <i class="bi bi-at"></i> Check Social Media
                                     </button>
                                 </div>
                                 <button class="toggle-score-details com-score-details" onclick="toggleComScoreDetails(this)">
@@ -1176,11 +1176,23 @@ function createDomainCard(brandName, ext, info, isFirstVariant = true) {
                     <span class="heart-icon">♥</span>
                 </button>
             </div>
+            <div class="mt-2">
+                <button class="btn btn-sm btn-outline-dark w-100"
+                        onclick="checkSocialMedia(event, '${brandName}')">
+                    <i class="bi bi-at"></i> Check Social Media
+                </button>
+            </div>
         ` : `
             <div class="domain-actions">
                 <button class="btn btn-sm watchlist-btn w-100"
                         onclick="addToWatchlist(event, '${brandName}', '${brandName}.${ext}', '${ext}')">
                     <i class="bi bi-eye"></i> Add to Watchlist
+                </button>
+            </div>
+            <div class="mt-2">
+                <button class="btn btn-sm btn-outline-dark w-100"
+                        onclick="checkSocialMedia(event, '${brandName}')">
+                    <i class="bi bi-at"></i> Check Social Media
                 </button>
             </div>
         `}
@@ -1230,6 +1242,131 @@ function toggleComScoreDetails(button) {
     } else {
         scoreDetails.classList.add('show-com-score');
         button.querySelector('span').textContent = 'Hide Score Details';
+    }
+}
+
+// Check social media availability for a username
+async function checkSocialMedia(event, brandName) {
+    event.preventDefault();
+    
+    // Get the button that was clicked
+    const button = event.target.closest('button');
+    if (!button) return;
+    
+    // Get the brand card
+    const brandCard = button.closest('.brand-card');
+    if (!brandCard) return;
+    
+    // Get or create the social media result container
+    let socialMediaResult = brandCard.querySelector('.social-media-result');
+    if (!socialMediaResult) {
+        socialMediaResult = document.createElement('div');
+        socialMediaResult.className = 'social-media-result mb-3';
+        
+        // Insert after the trademark-result div or at the beginning of the card
+        const trademarkResult = brandCard.querySelector('.trademark-result');
+        if (trademarkResult) {
+            trademarkResult.after(socialMediaResult);
+        } else {
+            const firstChild = brandCard.querySelector('.d-flex.justify-content-between');
+            if (firstChild && firstChild.nextElementSibling) {
+                firstChild.nextElementSibling.after(socialMediaResult);
+            } else {
+                brandCard.prepend(socialMediaResult);
+            }
+        }
+    }
+    
+    // Show loading indicator
+    socialMediaResult.innerHTML = `
+        <div class="alert alert-info">
+            <div class="d-flex align-items-center">
+                <div class="spinner-border spinner-border-sm me-2" role="status">
+                    <span class="visually-hidden">Loading...</span>
+                </div>
+                <span>Checking social media availability for "${brandName}"...</span>
+            </div>
+        </div>
+    `;
+    
+    // Update button state
+    button.disabled = true;
+    button.innerHTML = '<i class="bi bi-hourglass-split"></i> Checking...';
+    
+    try {
+        // Call the API
+        const response = await fetch(`/check-social-media/${brandName}`);
+        
+        if (!response.ok) {
+            throw new Error(`Error: ${response.status}`);
+        }
+        
+        const data = await response.json();
+        console.log('Social media check result:', data);
+        
+        // Create the result HTML
+        let resultHTML = `
+            <div class="alert alert-light border">
+                <h6 class="mb-2">Social Media Availability for "${data.username}"</h6>
+                <div class="social-media-platforms">
+        `;
+        
+        // Add platform results
+        for (const [platform, info] of Object.entries(data.platforms)) {
+            let statusIcon, statusClass;
+            
+            if (info.available === true) {
+                statusIcon = '<i class="bi bi-check-circle-fill text-success"></i>';
+                statusClass = 'text-success';
+            } else if (info.available === false) {
+                statusIcon = '<i class="bi bi-x-circle-fill text-danger"></i>';
+                statusClass = 'text-danger';
+            } else {
+                statusIcon = '<i class="bi bi-question-circle-fill text-warning"></i>';
+                statusClass = 'text-warning';
+            }
+            
+            resultHTML += `
+                <div class="platform-result d-flex justify-content-between align-items-center mb-1">
+                    <span>${platform}</span>
+                    <span class="${statusClass}">${statusIcon} ${info.status}</span>
+                </div>
+            `;
+        }
+        
+        // Add summary
+        resultHTML += `
+                </div>
+                <div class="mt-2 d-flex justify-content-between">
+                    <small class="text-muted">Available: ${data.available_count} | Taken: ${data.taken_count}</small>
+                    <button class="btn btn-sm btn-outline-secondary" onclick="this.closest('.social-media-result').remove()">
+                        <i class="bi bi-x"></i> Close
+                    </button>
+                </div>
+            </div>
+        `;
+        
+        // Update the result container
+        socialMediaResult.innerHTML = resultHTML;
+        
+    } catch (error) {
+        console.error('Error checking social media:', error);
+        
+        // Show error message
+        socialMediaResult.innerHTML = `
+            <div class="alert alert-danger">
+                <div class="d-flex justify-content-between align-items-center">
+                    <span>Error checking social media availability: ${error.message}</span>
+                    <button class="btn btn-sm btn-outline-danger" onclick="this.closest('.social-media-result').remove()">
+                        <i class="bi bi-x"></i>
+                    </button>
+                </div>
+            </div>
+        `;
+    } finally {
+        // Reset button state
+        button.disabled = false;
+        button.innerHTML = '<i class="bi bi-at"></i> Check Social Media';
     }
 }
 

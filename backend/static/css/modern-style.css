@@ -1115,3 +1115,37 @@ main {
     transform: none !important;
     transition: none !important;
 }
+
+/* Add styles for social media checker */
+.social-media-result {
+    margin-top: 10px;
+    margin-bottom: 15px;
+}
+
+.social-media-platforms {
+    margin-top: 10px;
+}
+
+.platform-result {
+    padding: 6px 10px;
+    border-radius: 4px;
+    background-color: rgba(0, 0, 0, 0.02);
+    margin-bottom: 5px;
+    transition: background-color 0.2s;
+}
+
+.platform-result:hover {
+    background-color: rgba(0, 0, 0, 0.05);
+}
+
+.platform-result .text-success {
+    color: #28a745 !important;
+}
+
+.platform-result .text-danger {
+    color: #dc3545 !important;
+}
+
+.platform-result .text-warning {
+    color: #ffc107 !important;
+}
