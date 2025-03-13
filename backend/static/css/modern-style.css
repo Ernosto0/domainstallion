@@ -21,6 +21,13 @@
     --border-radius: 12px;
     --box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
     --transition: all 0.25s ease-in-out;
+    --gradient-primary: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+    --gradient-accent: linear-gradient(135deg, var(--accent-color), #f72585);
+    --glass-bg: rgba(255, 255, 255, 0.95);
+    --glass-border: rgba(255, 255, 255, 0.2);
+    --glass-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+    --card-hover-transform: translateY(-8px);
+    --card-hover-shadow: 0 12px 40px rgba(0, 0, 0, 0.15);
 }
 
 body {
@@ -46,11 +53,16 @@ main {
     box-shadow: var(--box-shadow);
     border-radius: var(--border-radius);
     overflow: hidden;
+    backdrop-filter: blur(10px);
+    background: var(--glass-bg);
+    border: 1px solid var(--glass-border);
+    box-shadow: var(--glass-shadow);
+    transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .card:hover {
-    transform: translateY(-5px);
-    box-shadow: 0 8px 30px rgba(0, 0, 0, 0.12);
+    transform: var(--card-hover-transform);
+    box-shadow: var(--card-hover-shadow);
 }
 
 /* Navbar styling */
@@ -58,6 +70,9 @@ main {
     box-shadow: 0 2px 15px rgba(0, 0, 0, 0.05);
     padding: 1rem 0;
     background: white !important;
+    backdrop-filter: blur(10px);
+    background: var(--glass-bg) !important;
+    border-bottom: 1px solid var(--glass-border);
 }
 
 .navbar-brand {
@@ -99,6 +114,9 @@ main {
     padding: 3rem 0;
     margin-top: 3rem;
     border-top: 1px solid var(--gray-200);
+    backdrop-filter: blur(10px);
+    background: var(--glass-bg);
+    border-top: 1px solid var(--glass-border);
 }
 
 .footer-content {
@@ -201,13 +219,31 @@ main {
 }
 
 .btn-primary {
-    background-color: var(--primary-color);
-    border-color: var(--primary-color);
+    background: var(--gradient-primary);
+    border: none;
+    position: relative;
+    overflow: hidden;
+    transition: all 0.3s ease;
 }
 
-.btn-primary:hover {
-    background-color: var(--secondary-color);
-    border-color: var(--secondary-color);
+.btn-primary::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(
+        90deg,
+        transparent,
+        rgba(255, 255, 255, 0.2),
+        transparent
+    );
+    transition: 0.5s;
+}
+
+.btn-primary:hover::before {
+    left: 100%;
 }
 
 /* Results styling */
@@ -240,12 +276,16 @@ main {
     box-shadow: var(--box-shadow);
     transition: var(--transition);
     border: 1px solid var(--gray-200);
+    backdrop-filter: blur(10px);
+    background: var(--glass-bg);
+    border: 1px solid var(--glass-border);
+    box-shadow: var(--glass-shadow);
+    transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .brand-card:hover {
-    transform: translateY(-5px);
-    box-shadow: 0 8px 30px rgba(0, 0, 0, 0.12);
-    border-color: var(--gray-300);
+    transform: var(--card-hover-transform);
+    box-shadow: var(--card-hover-shadow);
 }
 
 /* Domain cards styling */
@@ -267,12 +307,17 @@ main {
     position: relative;
     display: flex;
     flex-direction: column;
+    backdrop-filter: blur(10px);
+    background: var(--glass-bg);
+    border: 1px solid var(--glass-border);
+    box-shadow: var(--glass-shadow);
+    transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .domain-card:hover {
     display: flex;
-    transform: translateY(-3px);
-    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.1);
+    transform: var(--card-hover-transform);
+    box-shadow: var(--card-hover-shadow);
     border-color: var(--gray-300);
 }
 
@@ -448,9 +493,18 @@ main {
 }
 
 #loading .spinner-border {
-    width: 3rem;
-    height: 3rem;
-    color: var(--primary-color);
+    width: 3.5rem;
+    height: 3.5rem;
+    border-width: 0.25rem;
+    border-color: var(--primary-color);
+    border-right-color: transparent;
+    animation: spinner-border 1s linear infinite;
+}
+
+@keyframes spinner-border {
+    to {
+        transform: rotate(360deg);
+    }
 }
 
 /* Toast notification */
@@ -464,9 +518,14 @@ main {
     border-radius: 12px;
     box-shadow: 0 10px 30px rgba(0, 0, 0, 0.15);
     z-index: 1000;
-    animation: slideIn 0.3s ease, fadeOut 0.3s ease 2.7s;
+    animation: slideIn 0.4s cubic-bezier(0.4, 0, 0.2, 1) forwards;
     border-left: 4px solid var(--primary-color);
     min-width: 300px;
+    backdrop-filter: blur(10px);
+    background: var(--glass-bg);
+    border: 1px solid var(--glass-border);
+    box-shadow: var(--glass-shadow);
+    transform: translateX(100%);
 }
 
 .toast-notification.success {
@@ -487,6 +546,7 @@ main {
     height: 36px;
     position: relative;
     background: conic-gradient(
+        from 0deg,
         var(--score-color, var(--primary-color)) calc(var(--score-value) * 1%),
         var(--gray-200) calc(var(--score-value) * 1%)
     );
@@ -494,7 +554,7 @@ main {
     display: flex;
     align-items: center;
     justify-content: center;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    box-shadow: var(--glass-shadow);
 }
 
 .score-circle-small .score-circle-inner {
@@ -517,6 +577,7 @@ main {
     height: 48px;
     position: relative;
     background: conic-gradient(
+        from 0deg,
         var(--score-color, var(--primary-color)) calc(var(--score-value) * 1%),
         var(--gray-200) calc(var(--score-value) * 1%)
     );
@@ -524,7 +585,7 @@ main {
     display: flex;
     align-items: center;
     justify-content: center;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    box-shadow: var(--glass-shadow);
 }
 
 .score-circle-main .score-circle-inner {
@@ -741,9 +802,10 @@ main {
 }
 
 .accordion-button {
-    background-color: white;
-    border: 1px solid var(--gray-200);
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+    backdrop-filter: blur(10px);
+    background: var(--glass-bg);
+    border: 1px solid var(--glass-border);
+    transition: all 0.3s ease;
     border-radius: var(--border-radius) !important;
     padding: 1.5rem;
     font-weight: 600;
@@ -752,15 +814,13 @@ main {
 }
 
 .accordion-button:not(.collapsed) {
-    background-color: white;
-    color: var(--primary-color);
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
-    border-color: var(--primary-color);
+    background: var(--gradient-primary);
+    color: white;
+    box-shadow: var(--glass-shadow);
 }
 
 .accordion-button:focus {
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
-    border-color: var(--primary-color);
+    box-shadow: var(--glass-shadow);
 }
 
 .accordion-body {
@@ -780,6 +840,10 @@ main {
     border-radius: var(--border-radius);
     box-shadow: 0 10px 40px rgba(0, 0, 0, 0.1);
     overflow: hidden;
+    backdrop-filter: blur(10px);
+    background: var(--glass-bg);
+    border: 1px solid var(--glass-border);
+    box-shadow: var(--glass-shadow);
 }
 
 .modal-header {
@@ -1004,14 +1068,15 @@ main {
 /* Form styling */
 .form-control, .form-select {
     padding: 0.75rem 1rem;
-    border: 1px solid var(--gray-300);
+    border: 2px solid var(--gray-200);
     border-radius: 8px;
-    transition: var(--transition);
+    transition: all 0.3s ease;
 }
 
 .form-control:focus, .form-select:focus {
     border-color: var(--primary-color);
-    box-shadow: 0 0 0 3px var(--primary-light);
+    box-shadow: 0 0 0 4px var(--primary-light);
+    transform: translateY(-2px);
 }
 
 .form-label {
@@ -1039,7 +1104,7 @@ main {
 }
 
 #lengthSlider .noUi-connect {
-    background: var(--primary-color);
+    background: var(--gradient-primary);
 }
 
 #lengthSlider .noUi-handle {
@@ -1048,14 +1113,13 @@ main {
     border-radius: 50%;
     background: white;
     border: 2px solid var(--primary-color);
-    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
-    cursor: pointer;
-    transition: transform 0.2s ease;
+    box-shadow: var(--glass-shadow);
+    transition: all 0.3s ease;
 }
 
 #lengthSlider .noUi-handle:hover {
     transform: scale(1.2);
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
 }
 
 #lengthSlider .noUi-handle::before,
@@ -1075,6 +1139,23 @@ main {
     margin-top: 0.5rem;
     z-index: 1050; /* Higher z-index to appear above cards */
     transform: none !important; /* Prevent inheriting transforms */
+    backdrop-filter: blur(10px);
+    background: var(--glass-bg);
+    border: 1px solid var(--glass-border);
+    box-shadow: var(--glass-shadow);
+    transform-origin: top;
+    animation: dropdownFade 0.2s ease-out;
+}
+
+@keyframes dropdownFade {
+    from {
+        opacity: 0;
+        transform: scale(0.95);
+    }
+    to {
+        opacity: 1;
+        transform: scale(1);
+    }
 }
 
 /* Prevent dropdown from being affected by parent hover */
@@ -1099,11 +1180,16 @@ main {
     height: 100%;
     position: relative; /* Add position relative */
     overflow: visible !important; /* Ensure dropdowns aren't cut off */
+    backdrop-filter: blur(10px);
+    background: var(--glass-bg);
+    border: 1px solid var(--glass-border);
+    box-shadow: var(--glass-shadow);
+    transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .domain-card:hover {
-    transform: translateY(-5px);
-    box-shadow: 0 8px 30px rgba(0, 0, 0, 0.12);
+    transform: var(--card-hover-transform);
+    box-shadow: var(--card-hover-shadow);
     border-color: var(--primary-light);
     z-index: 1; /* Add z-index to ensure proper stacking */
 }
