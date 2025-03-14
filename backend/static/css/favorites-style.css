@@ -223,28 +223,24 @@
 .score-bar {
     height: 100%;
     border-radius: 3px;
+    background-color: var(--primary-color);
 }
 
-/* Score bar colors based on value */
-.score-bar[style*="width: 90%"],
-.score-bar[style*="width: 80%"],
-.score-bar[style*="width: 70%"],
-.score-bar[style*="width: 60%"] {
+/* Score bar colors based on data-score attribute */
+.score-bar[data-score="90"], .score-bar[data-score="80"], 
+.score-bar[data-score="70"], .score-bar[data-score="60"] {
     background: #4361ee;  /* Indigo for good scores */
 }
 
-.score-bar[style*="width: 50%"],
-.score-bar[style*="width: 40%"] {
+.score-bar[data-score="50"], .score-bar[data-score="40"] {
     background: #3a0ca3;  /* Purple for medium scores */
 }
 
-.score-bar[style*="width: 30%"],
-.score-bar[style*="width: 20%"] {
+.score-bar[data-score="30"], .score-bar[data-score="20"] {
     background: #7209b7;  /* Violet for low scores */
 }
 
-.score-bar[style*="width: 10%"],
-.score-bar[style*="width: 0%"] {
+.score-bar[data-score="10"], .score-bar[data-score="0"] {
     background: #f72585;  /* Pink for very low scores */
 }
 

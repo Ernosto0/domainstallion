@@ -2,6 +2,11 @@
 let authToken = localStorage.getItem('authToken');
 let currentUser = localStorage.getItem('username');
 
+// Declare functions in the global scope
+window.deleteFavorite = null;
+window.removeFromWatchlist = null;
+window.toggleAlert = null;
+
 // Update UI based on auth state
 function updateAuthUI() {
     const loginRegisterNav = document.getElementById('loginRegisterNav');
@@ -95,7 +100,7 @@ function displayFavorites(favoritesToShow) {
                                 Register Domain
                             </a>
                             <button class="btn btn-sm btn-outline-danger" 
-                                    onclick="removeFavorite(${favorite.id})">
+                                    data-favorite-id="${favorite.id}">
                                 <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-trash" viewBox="0 0 16 16">
                                     <path d="M5.5 5.5A.5.5 0 0 1 6 6v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5m2.5 0a.5.5 0 0 1 .5.5v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5m3 .5a.5.5 0 0 0-1 0v6a.5.5 0 0 0 1 0z"/>
                                     <path d="M14.5 3a1 1 0 0 1-1 1H13v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V4h-.5a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1H6a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1h3.5a1 1 0 0 1 1 1zM4.118 4 4 4.059V13a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1V4.059L11.882 4zM2.5 3h11V2h-11z"/>
@@ -257,11 +262,204 @@ document.getElementById('sortByPrice').addEventListener('click', () => {
 });
 
 // Initialize auth UI on page load
-updateAuthUI();
+document.addEventListener('DOMContentLoaded', function() {
+    console.log("DOM fully loaded");
+    
+    // Make sure functions are available in the global scope
+    window.deleteFavorite = deleteFavorite;
+    window.removeFromWatchlist = removeFromWatchlist;
+    window.toggleAlert = toggleAlert;
+    
+    // Initialize tooltips
+    const tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+    tooltipTriggerList.map(function (tooltipTriggerEl) {
+        return new bootstrap.Tooltip(tooltipTriggerEl);
+    });
 
+    // Initialize score bars
+    initializeScoreBars();
+    
+    // Update auth UI
+    updateAuthUI();
+    
+    // Sort buttons functionality
+    const sortButtons = document.querySelectorAll('.btn-group .btn[data-sort]');
+    sortButtons.forEach(button => {
+        button.addEventListener('click', function() {
+            const sortBy = this.getAttribute('data-sort');
+            const container = this.closest('.tab-pane').querySelector('.row');
+            const items = Array.from(container.children);
+            
+            // Sort the items
+            items.sort((a, b) => {
+                let aValue = a.getAttribute(`data-${sortBy}`);
+                let bValue = b.getAttribute(`data-${sortBy}`);
+                
+                // Handle numeric values
+                if (sortBy === 'score') {
+                    return parseInt(bValue) - parseInt(aValue); // Descending for scores
+                }
+                
+                // Handle status values
+                if (sortBy === 'status') {
+                    // Sort available domains first
+                    if (aValue === 'available' && bValue !== 'available') return -1;
+                    if (aValue !== 'available' && bValue === 'available') return 1;
+                    return aValue.localeCompare(bValue);
+                }
+                
+                // Handle date values (assuming they're in a sortable format)
+                if (sortBy === 'date') {
+                    return new Date(bValue) - new Date(aValue); // Newest first
+                }
+                
+                // Default string comparison
+                return aValue.localeCompare(bValue);
+            });
+            
+            // Reappend the sorted items
+            items.forEach(item => container.appendChild(item));
+            
+            // Update active state on buttons
+            this.closest('.btn-group').querySelectorAll('.btn').forEach(btn => {
+                btn.classList.remove('active', 'btn-primary');
+                btn.classList.add('btn-outline-secondary');
+            });
+            this.classList.remove('btn-outline-secondary');
+            this.classList.add('active', 'btn-primary');
+        });
+    });
+
+    // Add event listeners for favorite and watchlist buttons
+    addButtonEventListeners();
+});
+
+// Initialize score bars based on data-score attributes
+function initializeScoreBars() {
+    document.querySelectorAll('.score-bar').forEach(bar => {
+        const score = bar.getAttribute('data-score');
+        if (score) {
+            bar.style.width = score + '%';
+        }
+    });
+}
+
+// Add event listeners to buttons using data attributes
+function addButtonEventListeners() {
+    // Favorite delete buttons
+    document.querySelectorAll('button[data-favorite-id]').forEach(button => {
+        button.addEventListener('click', function() {
+            const favoriteId = this.getAttribute('data-favorite-id');
+            deleteFavorite(favoriteId);
+        });
+    });
+    
+    // Watchlist remove buttons
+    document.querySelectorAll('button[data-watchlist-id]').forEach(button => {
+        button.addEventListener('click', function() {
+            const watchlistId = this.getAttribute('data-watchlist-id');
+            removeFromWatchlist(watchlistId);
+        });
+    });
+    
+    // Alert toggle buttons
+    document.querySelectorAll('button[data-domain-id]').forEach(button => {
+        button.addEventListener('click', function() {
+            const domainId = this.getAttribute('data-domain-id');
+            toggleAlert(domainId, this);
+        });
+    });
+}
+
+// Delete favorite function
+function deleteFavorite(favoriteId) {
+    if (!confirm('Are you sure you want to remove this domain from your favorites?')) {
+        return;
+    }
+    
+    fetch(`/favorites/${favoriteId}`, {
+        method: 'DELETE',
+        headers: {
+            'Authorization': `Bearer ${authToken}`
+        }
+    })
+    .then(response => {
+        if (response.ok) {
+            // Remove the card from the DOM
+            const card = document.querySelector(`[data-favorite-id="${favoriteId}"]`);
+            if (card) {
+                card.closest('.col-md-6').remove();
+            } else {
+                // If we can't find by data attribute, try to find the button and navigate up
+                const button = document.querySelector(`button[onclick*="deleteFavorite(${favoriteId})"]`);
+                if (button) {
+                    button.closest('.col-md-6').remove();
+                }
+            }
+            
+            // Update the count
+            const count = document.getElementById('favoritesCount');
+            if (count) {
+                count.textContent = parseInt(count.textContent) - 1;
+            }
+            
+            showToast('Domain removed from favorites', 'success');
+        } else {
+            showToast('Failed to remove domain', 'error');
+        }
+    })
+    .catch(error => {
+        console.error('Error removing favorite:', error);
+        showToast('An error occurred', 'error');
+    });
+}
+
+// Remove from watchlist function
+function removeFromWatchlist(watchlistId) {
+    if (!confirm('Are you sure you want to remove this domain from your watchlist?')) {
+        return;
+    }
+    
+    fetch(`/watchlist/${watchlistId}`, {
+        method: 'DELETE',
+        headers: {
+            'Authorization': `Bearer ${authToken}`
+        }
+    })
+    .then(response => {
+        if (response.ok) {
+            // Remove the card from the DOM
+            const card = document.querySelector(`[data-watchlist-id="${watchlistId}"]`);
+            if (card) {
+                card.closest('.col-md-6').remove();
+            } else {
+                // If we can't find by data attribute, try to find the button and navigate up
+                const button = document.querySelector(`button[onclick*="removeFromWatchlist(${watchlistId})"]`);
+                if (button) {
+                    button.closest('.col-md-6').remove();
+                }
+            }
+            
+            // Update the count
+            const count = document.getElementById('watchlistCount');
+            if (count) {
+                count.textContent = parseInt(count.textContent) - 1;
+            }
+            
+            showToast('Domain removed from watchlist', 'success');
+        } else {
+            showToast('Failed to remove domain', 'error');
+        }
+    })
+    .catch(error => {
+        console.error('Error removing from watchlist:', error);
+        showToast('An error occurred', 'error');
+    });
+}
 
 // Make toggleAlert available in the global scope
 function toggleAlert(watchlistId, button) {
+    console.log("toggleAlert called with ID:", watchlistId);
     const currentState = button.getAttribute('data-notify') === 'true';
     const newState = !currentState;
     
@@ -269,7 +467,7 @@ function toggleAlert(watchlistId, button) {
         method: 'PATCH',
         headers: {
             'Content-Type': 'application/json',
-            'Authorization': `Bearer ${localStorage.getItem('authToken')}`
+            'Authorization': `Bearer ${authToken}`
         },
         body: JSON.stringify({
             notify_when_available: newState
@@ -351,61 +549,4 @@ function showToast(message, type = 'info') {
     toastElement.addEventListener('hidden.bs.toast', function() {
         toastElement.remove();
     });
-}
-
-// Initialize tooltips and other UI elements when the DOM is loaded
-document.addEventListener('DOMContentLoaded', function() {
-    // Initialize tooltips
-    const tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
-    tooltipTriggerList.map(function (tooltipTriggerEl) {
-        return new bootstrap.Tooltip(tooltipTriggerEl);
-    });
-
-    // Sort buttons functionality
-    const sortButtons = document.querySelectorAll('.btn-group .btn[data-sort]');
-    sortButtons.forEach(button => {
-        button.addEventListener('click', function() {
-            const sortBy = this.getAttribute('data-sort');
-            const container = this.closest('.tab-pane').querySelector('.row');
-            const items = Array.from(container.children);
-            
-            // Sort the items
-            items.sort((a, b) => {
-                let aValue = a.getAttribute(`data-${sortBy}`);
-                let bValue = b.getAttribute(`data-${sortBy}`);
-                
-                // Handle numeric values
-                if (sortBy === 'score') {
-                    return parseInt(bValue) - parseInt(aValue); // Descending for scores
-                }
-                
-                // Handle status values
-                if (sortBy === 'status') {
-                    // Sort available domains first
-                    if (aValue === 'available' && bValue !== 'available') return -1;
-                    if (aValue !== 'available' && bValue === 'available') return 1;
-                    return aValue.localeCompare(bValue);
-                }
-                
-                // Handle date values (assuming they're in a sortable format)
-                if (sortBy === 'date') {
-                    return new Date(bValue) - new Date(aValue); // Newest first
-                }
-                
-                // Default string comparison
-                return aValue.localeCompare(bValue);
-            });
-            
-            // Reappend the sorted items
-            items.forEach(item => container.appendChild(item));
-            
-            // Update active state on buttons
-            this.closest('.btn-group').querySelectorAll('.btn').forEach(btn => {
-                btn.classList.remove('active', 'btn-primary');
-                btn.classList.add('btn-outline-secondary');
-            });
-            this.classList.remove('btn-outline-secondary');
-            this.classList.add('active', 'btn-primary');
-        });
-    });
-}); 
+} 

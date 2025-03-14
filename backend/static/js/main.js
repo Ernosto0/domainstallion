@@ -1714,3 +1714,4 @@ function removeFromWatchlist(watchlistId) {
         showToast('Failed to remove domain from watchlist', 'error');
     });
 }
+

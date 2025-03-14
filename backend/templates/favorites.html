@@ -9,6 +9,23 @@
     <link href="{{ url_for('static', path='/css/modern-style.css') }}" rel="stylesheet">
     <link href="{{ url_for('static', path='/css/favorites-style.css') }}" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <script>
+        // Define placeholder functions that will be replaced when the JS loads
+        function deleteFavorite(id) {
+            console.log('deleteFavorite placeholder called with ID:', id);
+            alert('Please wait while the page finishes loading...');
+        }
+        
+        function removeFromWatchlist(id) {
+            console.log('removeFromWatchlist placeholder called with ID:', id);
+            alert('Please wait while the page finishes loading...');
+        }
+        
+        function toggleAlert(id, element) {
+            console.log('toggleAlert placeholder called with ID:', id);
+            alert('Please wait while the page finishes loading...');
+        }
+    </script>
 </head>
 <body>
     <nav class="navbar navbar-expand-lg navbar-light">
@@ -108,31 +125,31 @@
                                                 <div class="score-details">
                                                     <div class="score-item d-flex align-items-center mb-1">
                                                         <div class="score-bar-container flex-grow-1">
-                                                            <div class="score-bar" style="width: {{ favorite.length_score }}%"></div>
+                                                            <div class="score-bar" data-score="{{ favorite.length_score }}"></div>
                                                         </div>
                                                         <small class="ms-2">Length</small>
                                                     </div>
                                                     <div class="score-item d-flex align-items-center mb-1">
                                                         <div class="score-bar-container flex-grow-1">
-                                                            <div class="score-bar" style="width: {{ favorite.dictionary_score }}%"></div>
+                                                            <div class="score-bar" data-score="{{ favorite.dictionary_score }}"></div>
                                                         </div>
                                                         <small class="ms-2">Dictionary</small>
                                                     </div>
                                                     <div class="score-item d-flex align-items-center mb-1">
                                                         <div class="score-bar-container flex-grow-1">
-                                                            <div class="score-bar" style="width: {{ favorite.pronounceability_score }}%"></div>
+                                                            <div class="score-bar" data-score="{{ favorite.pronounceability_score }}"></div>
                                                         </div>
                                                         <small class="ms-2">Pronounceability</small>
                                                     </div>
                                                     <div class="score-item d-flex align-items-center mb-1">
                                                         <div class="score-bar-container flex-grow-1">
-                                                            <div class="score-bar" style="width: {{ favorite.repetition_score }}%"></div>
+                                                            <div class="score-bar" data-score="{{ favorite.repetition_score }}"></div>
                                                         </div>
                                                         <small class="ms-2">Repetition</small>
                                                     </div>
                                                     <div class="score-item d-flex align-items-center mb-1">
                                                         <div class="score-bar-container flex-grow-1">
-                                                            <div class="score-bar" style="width: {{ favorite.tld_score }}%"></div>
+                                                            <div class="score-bar" data-score="{{ favorite.tld_score }}"></div>
                                                         </div>
                                                         <small class="ms-2">TLD</small>
                                                     </div>
@@ -359,5 +376,11 @@
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
     <script src="{{ url_for('static', path='/js/main.js') }}"></script>
     <script src="{{ url_for('static', path='/js/favorites.js') }}"></script>
+    <script>
+        // Make sure these functions are available in the global scope
+        window.deleteFavorite = deleteFavorite;
+        window.removeFromWatchlist = removeFromWatchlist;
+        window.toggleAlert = toggleAlert;
+    </script>
 </body>
 </html>
