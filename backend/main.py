@@ -675,39 +675,3 @@ async def test_domain_checker(domain: str):
         logging.error(f"Error testing domain checker: {str(e)}")
         return {"error": str(e)}
 
-
-@app.get("/api/test-providers")
-async def test_providers():
-    """
-    Test endpoint to check if provider information is being correctly passed to the frontend
-    """
-    try:
-        # Create a test domain with provider information
-        test_domain = {
-            "domain": "test.com",
-            "available": True,
-            "price": "$10.99",
-            "score": {
-                "total_score": 80,
-                "details": {
-                    "length": {"score": 80, "description": "Good length"},
-                    "dictionary": {"score": 80, "description": "Contains real words"},
-                    "pronounceability": {
-                        "score": 80,
-                        "description": "Easy to pronounce",
-                    },
-                    "repetition": {"score": 80, "description": "No letter repetition"},
-                    "tld": {"score": 80, "description": "Popular TLD"},
-                },
-            },
-            "providers": {"godaddy": 10990000, "porkbun": 8990000},
-        }
-
-        # Create a test brand response
-        test_brand = {"name": "test", "domains": {"com": test_domain}}
-
-        logging.info(f"Test providers endpoint response: {test_brand}")
-        return [test_brand]
-    except Exception as e:
-        logging.error(f"Error in test providers endpoint: {str(e)}")
-        return {"error": str(e)}
