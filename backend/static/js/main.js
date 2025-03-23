@@ -291,13 +291,27 @@ document.addEventListener('DOMContentLoaded', function() {
                                 <div class="d-flex gap-2 mb-3">
                                     <div class="d-flex gap-2 flex-grow-1">
                                         <div class="btn-group flex-grow-1">
-                                            <a href="https://www.godaddy.com/domainsearch/find?domainToCheck=${brand.name}.com" 
-                                               target="_blank" 
-                                               class="btn btn-sm btn-outline-primary register-domain-btn flex-grow-1"
-                                               data-domain="${brand.name}.com"
-                                               data-provider="godaddy">
-                                                <img src="/static/css/images/godaddy.ico" class="provider-icon" width="14" height="14" alt="GoDaddy"> Register Domain
-                                            </a>
+                                            ${(() => {
+                                                // Find first provider with valid price
+                                                const providers = brand.domains.com?.providers || {};
+                                                const validProviders = [
+                                                    { id: 'godaddy', name: 'GoDaddy', price: providers.godaddy },
+                                                    { id: 'porkbun', name: 'Porkbun', price: providers.porkbun },
+                                                    { id: 'namespace', name: 'Namespace', price: providers.namespace },
+                                                    { id: 'namecheap', name: 'Namecheap', price: providers.namecheap }
+                                                ].filter(p => p.price && !isNaN(p.price));
+                                                
+                                                // Default to godaddy if no valid providers
+                                                const defaultProvider = validProviders.length > 0 ? validProviders[0] : { id: 'godaddy', name: 'GoDaddy' };
+                                                
+                                                return `<a href="https://${defaultProvider.id === 'godaddy' ? 'www.godaddy.com/domainsearch/find?domainToCheck=' : ''}${defaultProvider.id}.com/domains/${brand.name}.com" 
+                                                   target="_blank" 
+                                                   class="btn btn-sm btn-outline-primary register-domain-btn flex-grow-1"
+                                                   data-domain="${brand.name}.com"
+                                                   data-provider="${defaultProvider.id}">
+                                                    <img src="/static/css/images/${defaultProvider.id}.ico" class="provider-icon" width="14" height="14" alt="${defaultProvider.name}"> Register Domain
+                                                </a>`;
+                                            })()}
                                             <button type="button" 
                                                     class="btn btn-sm btn-outline-primary dropdown-toggle dropdown-toggle-split" 
                                                     data-bs-toggle="dropdown" 
@@ -306,14 +320,22 @@ document.addEventListener('DOMContentLoaded', function() {
                                             </button>
                                             <ul class="dropdown-menu dropdown-menu-end provider-dropdown">
                                                 <li><h6 class="dropdown-header">Choose Provider</h6></li>
+                                                ${brand.domains.com?.providers?.godaddy && !isNaN(brand.domains.com.providers.godaddy) ? `
                                                 <li><a class="dropdown-item provider-option" href="#" data-provider="godaddy" data-domain="${brand.name}.com">
-                                                    GoDaddy ${brand.domains.com?.providers?.godaddy ? `$${(brand.domains.com.providers.godaddy/1000000).toFixed(2)}` : ''}
-                                                </a></li>
+                                                    GoDaddy $${(brand.domains.com.providers.godaddy/1000000).toFixed(2)}
+                                                </a></li>` : ''}
+                                                ${brand.domains.com?.providers?.porkbun && !isNaN(brand.domains.com.providers.porkbun) ? `
                                                 <li><a class="dropdown-item provider-option" href="#" data-provider="porkbun" data-domain="${brand.name}.com">
-                                                    Porkbun ${brand.domains.com?.providers?.porkbun ? `$${(brand.domains.com.providers.porkbun/1000000).toFixed(2)}` : ''}
-                                                </a></li>
-                                                <li><a class="dropdown-item provider-option" href="#" data-provider="namespace" data-domain="${brand.name}.com">Namespace</a></li>
-                                                <li><a class="dropdown-item provider-option" href="#" data-provider="namecheap" data-domain="${brand.name}.com">Namecheap</a></li>
+                                                    Porkbun $${(brand.domains.com.providers.porkbun/1000000).toFixed(2)}
+                                                </a></li>` : ''}
+                                                ${brand.domains.com?.providers?.namespace && !isNaN(brand.domains.com.providers.namespace) ? `
+                                                <li><a class="dropdown-item provider-option" href="#" data-provider="namespace" data-domain="${brand.name}.com">
+                                                    Namespace $${(brand.domains.com.providers.namespace/1000000).toFixed(2)}
+                                                </a></li>` : ''}
+                                                ${brand.domains.com?.providers?.namecheap && !isNaN(brand.domains.com.providers.namecheap) ? `
+                                                <li><a class="dropdown-item provider-option" href="#" data-provider="namecheap" data-domain="${brand.name}.com">
+                                                    Namecheap $${(brand.domains.com.providers.namecheap/1000000).toFixed(2)}
+                                                </a></li>` : ''}
                                             </ul>
                                         </div>
                                         <button class="btn btn-sm btn-outline-dark flex-grow-1"

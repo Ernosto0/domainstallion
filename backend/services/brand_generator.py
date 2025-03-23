@@ -11,6 +11,10 @@ from concurrent.futures import ThreadPoolExecutor
 from .domain_scorer import DomainScorer
 from fastapi import HTTPException, status
 from .domain_checker import check_multiple_domains
+import random
+import string
+import re
+from collections import Counter
 
 # Configure logging
 logging.basicConfig(level=logging.DEBUG)
@@ -38,7 +42,7 @@ DOMAIN_EXTENSIONS = [
 ]
 
 # Chunk size for concurrent API calls
-CHUNK_SIZE = 30  # Increased from 20 to 30 for better batch processing
+CHUNK_SIZE = 20  # Increased from 20 to 30 for better batch processing
 
 if not api_key:
     raise ValueError("OPENAI_API_KEY not found in environment variables")
@@ -100,12 +104,126 @@ class BrandGenerator:
             raise APIKeyError("OpenAI")
 
         self.domain_scorer = DomainScorer()
+        
+        # Common word patterns to avoid in domain names
+        self.common_patterns = [
+            r'^app$', r'^my', r'^the', r'^get', r'^go', r'^use', 
+            r'^pro$', r'^live$', r'^best', r'^top', r'^smart', 
+            r'^easy', r'^simple', r'^quick', r'^fast', r'^instant',
+            r'^online$', r'^web$', r'^tech$', r'^digital$'
+        ]
+
+    def _is_too_common(self, name):
+        """Check if a name contains patterns that are likely to be taken domains."""
+        name_lower = name.lower()
+        
+        # Check common patterns
+        for pattern in self.common_patterns:
+            if re.search(pattern, name_lower):
+                return True
+                
+        # Check if the name is too short and simple (likely taken)
+        if len(name) <= 4 and name.isalpha() and name.islower():
+            return True
+            
+        return False
+    
+    def _add_uniqueness(self, names, count=10):
+        """Add uniqueness to a subset of names by applying creative transformations."""
+        if not names:
+            return []
+            
+        unique_names = []
+        original_names = names.copy()  # Keep the original list intact
+        
+        # Take a subset of names to transform (but at least 1)
+        subset_count = min(max(1, count), len(names))
+        subset = random.sample(names, subset_count)
+        
+        for name in subset:
+            # Apply 1-3 random transformations
+            transformations = random.randint(1, 3)
+            transformed_name = name
+            
+            for _ in range(transformations):
+                # Choose a random transformation
+                transform_type = random.choice([
+                    'swap_letters', 'vowel_change', 'add_prefix', 
+                    'add_suffix', 'double_letter', 'remove_vowel'
+                ])
+                
+                if transform_type == 'swap_letters' and len(transformed_name) > 3:
+                    # Swap two adjacent letters
+                    pos = random.randint(0, len(transformed_name) - 2)
+                    chars = list(transformed_name)
+                    chars[pos], chars[pos + 1] = chars[pos + 1], chars[pos]
+                    transformed_name = ''.join(chars)
+                
+                elif transform_type == 'vowel_change':
+                    # Replace a vowel with another vowel or 'y'
+                    vowels = 'aeiou'
+                    replacements = 'aeiouy'
+                    chars = list(transformed_name)
+                    
+                    # Find vowel positions
+                    vowel_positions = [i for i, char in enumerate(chars) if char.lower() in vowels]
+                    if vowel_positions:
+                        pos = random.choice(vowel_positions)
+                        original_case = chars[pos].isupper()
+                        new_vowel = random.choice(replacements)
+                        chars[pos] = new_vowel.upper() if original_case else new_vowel
+                        transformed_name = ''.join(chars)
+                
+                elif transform_type == 'add_prefix':
+                    # Add a short prefix
+                    prefixes = ['e', 'i', 'x', 'z', 'v', 'neo', 'ex', 'fy', 'my', 'nu', 'zo', 'zi', 'vi']
+                    prefix = random.choice(prefixes)
+                    transformed_name = prefix + transformed_name
+                
+                elif transform_type == 'add_suffix':
+                    # Add a short suffix
+                    suffixes = ['ly', 'io', 'ify', 'ity', 'ify', 'ium', 'ble', 'ize', 'sy', 'zy', 'er']
+                    suffix = random.choice(suffixes)
+                    transformed_name = transformed_name + suffix
+                
+                elif transform_type == 'double_letter':
+                    # Double a random letter
+                    if len(transformed_name) > 2:
+                        pos = random.randint(0, len(transformed_name) - 1)
+                        transformed_name = transformed_name[:pos] + transformed_name[pos] + transformed_name[pos:]
+                
+                elif transform_type == 'remove_vowel':
+                    # Remove a vowel if it won't harm pronounceability
+                    vowels = 'aeiou'
+                    chars = list(transformed_name)
+                    
+                    # Find vowel positions (not first or last letter)
+                    vowel_positions = [i for i, char in enumerate(chars) 
+                                     if i > 0 and i < len(chars)-1 and char.lower() in vowels]
+                    
+                    # Don't remove a vowel if it would create a 3+ consonant cluster
+                    safe_positions = []
+                    for pos in vowel_positions:
+                        if not (chars[pos-1].lower() not in vowels and chars[pos+1].lower() not in vowels):
+                            safe_positions.append(pos)
+                    
+                    if safe_positions:
+                        pos = random.choice(safe_positions)
+                        transformed_name = transformed_name[:pos] + transformed_name[pos+1:]
+            
+            # Only add if the transformation actually changed the name and meets length requirements
+            if (transformed_name not in original_names and 
+                transformed_name not in unique_names and 
+                3 <= len(transformed_name) <= 15):
+                unique_names.append(transformed_name)
+        
+        return unique_names
 
     async def generate_names(
         self,
         keywords,
         style="neutral",
-        num_suggestions=20,
+        num_suggestions=20,  # Increased from 20 to 30
         min_length=3,
         max_length=15,
         include_word=None,
@@ -119,7 +237,7 @@ class BrandGenerator:
                     status_code=status.HTTP_400_BAD_REQUEST,
                 )
 
-            if style not in ["short", "playful", "serious", "techy", "neutral"]:
+            if style not in ["short", "playful", "serious", "techy", "neutral", "creative"]:
                 raise BrandGeneratorError(
                     message="Invalid style specified",
                     error_code="INVALID_STYLE",
@@ -131,6 +249,7 @@ class BrandGenerator:
                             "serious",
                             "techy",
                             "neutral",
+                            "creative"
                         ]
                     },
                 )
@@ -149,6 +268,7 @@ class BrandGenerator:
                 "playful": "Names should be fun, memorable, and potentially use wordplay or rhyming.",
                 "serious": "Names should be professional, trustworthy, and business-oriented.",
                 "techy": "Names should sound innovative, modern, and tech-savvy, potentially using tech-related suffixes.",
+                "creative": "Names should be highly unique, using unexpected word combinations, letter substitutions, or invented terms."
             }
 
             # Get style-specific guidelines or use neutral if style not specified
@@ -170,8 +290,23 @@ class BrandGenerator:
                 else ""
             )
 
+            creativity_boost = """
+            IMPORTANT CREATIVITY GUIDELINES:
+            - Create truly UNIQUE and DISTINCTIVE names that are unlikely to be taken
+            - Use unexpected letter combinations that are still pronounceable
+            - Consider partial word blends and creative misspellings 
+            - Add distinctive prefixes or suffixes to common words
+            - Invent entirely new words that evoke the feeling of the keywords
+            - Combine words in surprising ways
+            - Use alternative spellings (replace 'c' with 'k', 'i' with 'y', etc.) 
+            - Create compound words from partial words
+            - DO NOT use common dictionary words as standalone names
+            """
+
             prompt = f"""{word_inclusion_prefix}Generate {num_suggestions} unique and creative brand names based on these keywords: {keywords}.
             Style requirement: {style_guide}
+            
+            {creativity_boost}
             
             Rules:
             1. Names MUST be between {min_length}-{max_length} characters
@@ -182,6 +317,8 @@ class BrandGenerator:
             6. Do not include numbers or dots in the names
             7. Ensure names match the requested style: {style}
             {word_inclusion}
+            9. AVOID using any common words as standalone names, they are likely taken
+            10. CREATE highly distinctive names, not obvious combinations of the keywords
             
             Example format:
             BrandName1
@@ -194,10 +331,12 @@ class BrandGenerator:
                     f"Using parameters - min_length: {min_length}, max_length: {max_length}, include_word: {include_word}"
                 )
                 response = self.client.chat.completions.create(
-                    model="gpt-3.5-turbo",
+                    model="gpt-4o",  # Using GPT-4o for more creative results
                     messages=[{"role": "user", "content": prompt}],
-                    temperature=0.7,
-                    max_tokens=200,
+                    temperature=0.9,
+                    max_tokens=300,
+                    presence_penalty=0.6,
+                    frequency_penalty=0.8
                 )
                 logger.debug(
                     f"OpenAI API response received: {response.choices[0].message.content}"
@@ -247,9 +386,19 @@ class BrandGenerator:
                             f"Skipping name missing required word '{include_word}': {name}"
                         )
                         continue
+                    
+                    # Skip if name is likely to be already taken
+                    if self._is_too_common(name):
+                        logger.debug(f"Skipping common name pattern: {name}")
+                        continue
 
                     logger.debug(f"Adding valid name: {name}")
                     brand_names.append(name)
+                
+                # Add some uniquely transformed names for more creativity
+                unique_names = self._add_uniqueness(brand_names, count=min(10, num_suggestions//3))
+                brand_names.extend(unique_names)
+                logger.debug(f"Added {len(unique_names)} uniquely transformed names")
 
                 logger.debug(
                     f"Final cleaned brand names ({len(brand_names)}): {brand_names}"
@@ -260,7 +409,8 @@ class BrandGenerator:
                     return []
 
                 results = []
-                extensions = ["com", "io", "ai", "app", "net"]
+                # Use a subset of extensions for domain checking to keep response time reasonable
+                extensions = ["com", "io", "ai", "app", "net", "co", "xyz", "me", "tech"]
 
                 # Create all domain combinations
                 domain_checks = []
@@ -272,7 +422,7 @@ class BrandGenerator:
                 )
 
                 async with aiohttp.ClientSession(
-                    timeout=aiohttp.ClientTimeout(total=30),
+                    timeout=aiohttp.ClientTimeout(total=20),
                     connector=aiohttp.TCPConnector(
                         limit=20, ssl=False
                     ),  # Increased connection limit
