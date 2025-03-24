@@ -59,27 +59,30 @@ async def get_dynadot_pricing(requested_tlds=None) -> Dict:
 
     # Check if we have cached data that's still valid
     current_time = time.time()
+    
+    # Common TLDs to check for pricing if no specific TLDs are requested
+    common_tlds = ["com", "net", "org", "io", "ai", "app", "dev", "tech"]
+    
+    # If requested_tlds is provided, only check those TLDs
+    tlds_to_check = requested_tlds if requested_tlds else common_tlds
+    
+    # If we have a valid cache, return only the requested TLDs from it
     if DYNADOT_PRICING_CACHE and (current_time - CACHE_TIMESTAMP < CACHE_TTL):
         logger.debug("Using cached Dynadot pricing data")
         # If we have requested specific TLDs, only return those
         if requested_tlds:
+            logger.info(f"Returning cached pricing for requested TLDs: {requested_tlds}")
             return {tld: DYNADOT_PRICING_CACHE.get(tld) for tld in requested_tlds if tld in DYNADOT_PRICING_CACHE}
         return DYNADOT_PRICING_CACHE
 
-    logger.info("Fetching Dynadot pricing data...")
+    # If we're here, we need to fetch new pricing data
+    logger.info(f"Fetching Dynadot pricing data for TLDs: {tlds_to_check}")
     logger.info(f"DYNADOT_API_KEY exists: {bool(DYNADOT_API_KEY)}")
 
     if not DYNADOT_API_KEY:
         logger.error("Dynadot API key not configured")
         return {"error": "API key not configured"}
-
-    # Common TLDs to check for pricing
-    common_tlds = ["com", "net", "org", "io", "ai", "app", "dev", "tech"]
     
-    # If requested_tlds is provided, only check those TLDs
-    tlds_to_check = requested_tlds if requested_tlds else common_tlds
-    logger.info(f"Checking pricing for TLDs: {tlds_to_check}")
-
     # Create a pricing dictionary
     pricing_data = {}
 
@@ -174,6 +177,7 @@ async def get_dynadot_pricing(requested_tlds=None) -> Dict:
 
             # Only return requested TLDs if specified
             if requested_tlds:
+                logger.info(f"Returning pricing for requested TLDs: {requested_tlds}")
                 return {tld: pricing_data.get(tld) for tld in requested_tlds if tld in pricing_data}
             return pricing_data
 

@@ -18,11 +18,15 @@ CACHE_TIMESTAMP = 0
 CACHE_TTL = 86400  # 24 hours in seconds
 
 
-async def get_namesilo_pricing() -> Dict:
+async def get_namesilo_pricing(requested_tlds=None) -> Dict:
     """
     Fetch domain pricing from Namesilo API asynchronously.
     Returns a dictionary of TLDs with their pricing information.
     Caches results for 24 hours to reduce API calls.
+    
+    Args:
+        requested_tlds: Optional list of TLDs to check pricing for.
+                       If None, returns all pricing data.
     """
     global NAMESILO_PRICING_CACHE, CACHE_TIMESTAMP
 
@@ -30,9 +34,13 @@ async def get_namesilo_pricing() -> Dict:
     current_time = time.time()
     if NAMESILO_PRICING_CACHE and (current_time - CACHE_TIMESTAMP < CACHE_TTL):
         logger.debug("Using cached Namesilo pricing data")
+        # If we have requested specific TLDs, only return those
+        if requested_tlds:
+            logger.info(f"Returning cached pricing for requested TLDs only: {requested_tlds}")
+            return {tld: NAMESILO_PRICING_CACHE.get(tld) for tld in requested_tlds if tld in NAMESILO_PRICING_CACHE}
         return NAMESILO_PRICING_CACHE
 
-    logger.info("Fetching Namesilo pricing data...")
+    logger.info(f"Fetching Namesilo pricing data{' for requested TLDs: ' + str(requested_tlds) if requested_tlds else '...'}")
     logger.info(f"NAMESILO_API_KEY exists: {bool(NAMESILO_API_KEY)}")
 
     if not NAMESILO_API_KEY:
@@ -80,9 +88,16 @@ async def get_namesilo_pricing() -> Dict:
                             NAMESILO_PRICING_CACHE = pricing_data
                             CACHE_TIMESTAMP = current_time
 
-                            # Log common TLD prices for reference
-                            common_tlds = ["com", "net", "org", "io"]
-                            for tld in common_tlds:
+                            # Log only requested TLDs (or a small subset if no specific request)
+                            if requested_tlds:
+                                log_tlds = requested_tlds
+                                logger.info(f"Logging prices for requested extensions only: {log_tlds}")
+                            else:
+                                # Just log a few common ones to avoid excessive logging
+                                log_tlds = ["com", "net", "org", "io"]
+                                logger.info("Logging sample of common TLD prices for reference")
+                            
+                            for tld in log_tlds:
                                 if tld in NAMESILO_PRICING_CACHE:
                                     prices = NAMESILO_PRICING_CACHE.get(tld, {})
                                     logger.info(
@@ -92,6 +107,13 @@ async def get_namesilo_pricing() -> Dict:
                             logger.info(
                                 f"Successfully cached pricing for {len(NAMESILO_PRICING_CACHE)} TLDs from Namesilo"
                             )
+                            
+                            # If requested only specific TLDs, return just those
+                            if requested_tlds:
+                                filtered_data = {tld: pricing_data.get(tld) for tld in requested_tlds if tld in pricing_data}
+                                logger.info(f"Returning filtered pricing data for {len(filtered_data)} requested TLDs")
+                                return filtered_data
+                            
                             return NAMESILO_PRICING_CACHE
                         else:
                             error_msg = data.get("reply", {}).get(

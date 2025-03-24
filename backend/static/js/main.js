@@ -173,6 +173,13 @@ document.addEventListener('DOMContentLoaded', function() {
     if (form) {
         form.addEventListener('submit', async function(e) {
             e.preventDefault();
+            
+            // Hide advanced options menu
+            if (advancedOptions && advancedOptionsToggle) {
+                advancedOptions.style.display = 'none';
+                advancedOptionsToggle.innerHTML = '<i class="bi bi-gear"></i> Advanced Options';
+            }
+            
             const keywords = document.getElementById('keywordInput').value.trim();
             const style = document.getElementById('styleSelect').value;
             const [minLength, maxLength] = lengthSlider.noUiSlider.get();
@@ -210,6 +217,12 @@ document.addEventListener('DOMContentLoaded', function() {
             // Show loading indicator
             loading.style.display = 'block';
             
+            // Start loading progress simulation
+            simulateLoadingProgress();
+            
+            // Track the start time for response timing
+            const startTime = new Date().getTime();
+            
             try {
                 const requestBody = {
                     keywords: keywords,
@@ -226,13 +239,23 @@ document.addEventListener('DOMContentLoaded', function() {
                     requestBody.include_word = includeWord;
                 }
 
+                const controller = new AbortController();
+                const timeoutId = setTimeout(() => controller.abort(), 30000); // 30-second timeout
+
                 const response = await fetch('/api/generate', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
                     },
-                    body: JSON.stringify(requestBody)
+                    body: JSON.stringify(requestBody),
+                    signal: controller.signal
                 });
+                
+                clearTimeout(timeoutId);
+                
+                // Ensure our loading steps progress to match the actual timing
+                const responseTime = new Date().getTime() - startTime;
+                adjustLoadingProgress(responseTime);
 
                 if (!response.ok) {
                     throw new Error('Network response was not ok');
@@ -310,7 +333,8 @@ document.addEventListener('DOMContentLoaded', function() {
                                                 const validProviders = [
                                                     { id: 'godaddy', name: 'GoDaddy', price: providers.godaddy },
                                                     { id: 'porkbun', name: 'Porkbun', price: providers.porkbun },
-                                                    { id: 'namespace', name: 'Namespace', price: providers.namespace },
+                                                    { id: 'namesilo', name: 'Namesilo', price: providers.namesilo },
+                                                    { id: 'dynadot', name: 'dynadot', price: providers.dynadot },
                                                     { id: 'namecheap', name: 'Namecheap', price: providers.namecheap }
                                                 ].filter(p => p.price && !isNaN(p.price));
                                                 
@@ -341,9 +365,13 @@ document.addEventListener('DOMContentLoaded', function() {
                                                 <li><a class="dropdown-item provider-option" href="#" data-provider="porkbun" data-domain="${brand.name}.com">
                                                     Porkbun $${(brand.domains.com.providers.porkbun/1000000).toFixed(2)}
                                                 </a></li>` : ''}
-                                                ${brand.domains.com?.providers?.namespace && !isNaN(brand.domains.com.providers.namespace) ? `
-                                                <li><a class="dropdown-item provider-option" href="#" data-provider="namespace" data-domain="${brand.name}.com">
-                                                    Namespace $${(brand.domains.com.providers.namespace/1000000).toFixed(2)}
+                                                ${brand.domains.com?.providers?.namesilo && !isNaN(brand.domains.com.providers.namesilo) ? `
+                                                <li><a class="dropdown-item provider-option" href="#" data-provider="namesilo" data-domain="${brand.name}.com">
+                                                    Namesilo $${(brand.domains.com.providers.namesilo/1000000).toFixed(2)}
+                                                </a></li>` : ''}
+                                                ${brand.domains.com?.providers?.dynadot && !isNaN(brand.domains.com.providers.dynadot) ? `
+                                                <li><a class="dropdown-item provider-option" href="#" data-provider="dynadot" data-domain="${brand.name}.com">
+                                                    dynadot $${(brand.domains.com.providers.dynadot/1000000).toFixed(2)}
                                                 </a></li>` : ''}
                                                 ${brand.domains.com?.providers?.namecheap && !isNaN(brand.domains.com.providers.namecheap) ? `
                                                 <li><a class="dropdown-item provider-option" href="#" data-provider="namecheap" data-domain="${brand.name}.com">
@@ -1736,5 +1764,99 @@ function removeFromWatchlist(watchlistId) {
         console.error('Error removing from watchlist:', error);
         showToast('Failed to remove domain from watchlist', 'error');
     });
+}
+
+// Function to update the loading step
+function updateLoadingStep(step) {
+    // Get all loading steps
+    const steps = document.querySelectorAll('.loading-step');
+    
+    // Mark previous steps as completed
+    for (let i = 0; i < step - 1; i++) {
+        if (steps[i]) {
+            steps[i].classList.remove('active');
+            steps[i].classList.add('completed');
+        }
+    }
+    
+    // Set current step as active
+    steps.forEach((stepEl, index) => {
+        if (index + 1 === step) {
+            stepEl.classList.add('active');
+        } else if (index + 1 > step) {
+            stepEl.classList.remove('active', 'completed');
+        }
+    });
+}
+
+// Function to simulate loading progress
+function simulateLoadingProgress() {
+    // Reset all steps first
+    document.querySelectorAll('.loading-step').forEach(step => {
+        step.classList.remove('active', 'completed');
+    });
+    
+    // Start with step 1 (AI name generation)
+    updateLoadingStep(1);
+    
+    // Step 2 after 1.2 seconds (Filtering names)
+    setTimeout(() => updateLoadingStep(2), 1200);
+    
+    // Step 3 after another 1.5 seconds (GoDaddy domain checks)
+    setTimeout(() => updateLoadingStep(3), 2700);
+    
+    // Step 4 after another 2 seconds (Dynadot and other provider pricing)
+    setTimeout(() => updateLoadingStep(4), 4700);
+    
+    // Step 5 after another 1.5 seconds (Calculating scores)
+    setTimeout(() => updateLoadingStep(5), 6200);
+    
+    // Step 6 after another 1 second (Preparing results)
+    setTimeout(() => updateLoadingStep(6), 7200);
+}
+
+// Function to adjust loading progress based on actual response time
+function adjustLoadingProgress(responseTime) {
+    // Get all loading steps
+    const steps = document.querySelectorAll('.loading-step');
+    const totalSteps = steps.length;
+    
+    console.log(`Response received in ${responseTime}ms, adjusting loading steps`);
+    
+    // If response was very fast (< 3s), progress quickly through steps
+    if (responseTime < 3000) {
+        // Quickly complete all steps
+        for (let i = 0; i < totalSteps; i++) {
+            setTimeout(() => {
+                updateLoadingStep(i + 1);
+                // Add a small delay after the last step
+                if (i === totalSteps - 1) {
+                    setTimeout(() => {
+                        steps.forEach(step => step.classList.add('completed'));
+                    }, 200);
+                }
+            }, i * 200);
+        }
+    } 
+    // If response was moderate (3-6s), jump to later steps
+    else if (responseTime < 6000) {
+        // Jump to step 4 now (Dynadot pricing)
+        updateLoadingStep(4);
+        // Then to step 5 after a short delay (Calculating scores)
+        setTimeout(() => updateLoadingStep(5), 300);
+        // Then to final step (Preparing results)
+        setTimeout(() => updateLoadingStep(6), 600);
+    }
+    // If response was somewhat slow (6-10s), we're already at step 4-5
+    else if (responseTime < 10000) {
+        // Jump to step 5 (Calculating scores)
+        updateLoadingStep(5);
+        // Then to final step (Preparing results)
+        setTimeout(() => updateLoadingStep(6), 400);
+    }
+    // If response was very slow (> 10s), jump to the final step
+    else {
+        updateLoadingStep(6);
+    }
 }
 
