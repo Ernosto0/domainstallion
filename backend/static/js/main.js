@@ -178,6 +178,18 @@ document.addEventListener('DOMContentLoaded', function() {
             const [minLength, maxLength] = lengthSlider.noUiSlider.get();
             const includeWord = document.getElementById('includeWord').value.trim();
             
+            // Get selected domain extensions
+            const selectedExtensions = [];
+            document.querySelectorAll('.extension-checkbox:checked').forEach(checkbox => {
+                selectedExtensions.push(checkbox.getAttribute('data-ext'));
+            });
+            
+            // Validate at least one extension is selected
+            if (selectedExtensions.length === 0) {
+                showToast('Please select at least one domain extension', 'error');
+                return;
+            }
+            
             // Validate length values
             if (parseInt(minLength) > parseInt(maxLength)) {
                 showToast('Minimum length cannot be greater than maximum length', 'error');
@@ -205,7 +217,8 @@ document.addEventListener('DOMContentLoaded', function() {
                     num_suggestions: 20,
                     exclude_names: Array.from(document.querySelectorAll('.brand-card h3')).map(h => h.textContent.split('.')[0]),
                     min_length: parseInt(minLength),
-                    max_length: parseInt(maxLength)
+                    max_length: parseInt(maxLength),
+                    extensions: selectedExtensions
                 };
 
                 // Only add include_word if it's not empty
@@ -1198,23 +1211,11 @@ function createDomainCard(brandName, ext, info, isFirstVariant = true) {
                     <span class="heart-icon">♥</span>
                 </button>
             </div>
-            <div class="mt-2">
-                <button class="btn btn-sm btn-outline-dark w-100"
-                        onclick="checkSocialMedia(event, '${brandName}')">
-                    <i class="bi bi-at"></i> Check Social Media
-                </button>
-            </div>
         ` : `
             <div class="domain-actions">
                 <button class="btn btn-sm watchlist-btn w-100"
                         onclick="addToWatchlist(event, '${brandName}', '${brandName}.${ext}', '${ext}')">
                     <i class="bi bi-eye"></i> Add to Watchlist
-                </button>
-            </div>
-            <div class="mt-2">
-                <button class="btn btn-sm btn-outline-dark w-100"
-                        onclick="checkSocialMedia(event, '${brandName}')">
-                    <i class="bi bi-at"></i> Check Social Media
                 </button>
             </div>
         `}

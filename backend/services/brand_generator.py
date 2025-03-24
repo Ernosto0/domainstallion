@@ -223,10 +223,11 @@ class BrandGenerator:
         self,
         keywords,
         style="neutral",
-        num_suggestions=20,  # Increased from 20 to 30
+        num_suggestions=20,  
         min_length=3,
         max_length=15,
         include_word=None,
+        extensions=None,  # New parameter for custom extensions
     ):
         try:
             # Validate inputs
@@ -261,6 +262,21 @@ class BrandGenerator:
                     status_code=status.HTTP_400_BAD_REQUEST,
                     details={"min_length": min_length, "max_length": max_length},
                 )
+                
+            # Validate extensions
+            if not extensions or not isinstance(extensions, list) or len(extensions) == 0:
+                logger.debug("No extensions provided, using defaults")
+                # Default extensions if none provided
+                extensions = ["com", "io", "ai", "app", "net"]
+            else:
+                logger.debug(f"Using custom extensions: {extensions}")
+                # Validate the extensions are in our supported list
+                valid_extensions = set(DOMAIN_EXTENSIONS)
+                extensions = [ext for ext in extensions if ext in valid_extensions]
+                
+                if not extensions:
+                    logger.warning("No valid extensions after filtering, using defaults")
+                    extensions = ["com", "io", "ai", "app", "net"]
 
             # Style-specific guidelines
             style_guidelines = {
@@ -331,7 +347,7 @@ class BrandGenerator:
                     f"Using parameters - min_length: {min_length}, max_length: {max_length}, include_word: {include_word}"
                 )
                 response = self.client.chat.completions.create(
-                    model="gpt-4o",  # Using GPT-4o for more creative results
+                    model="gpt-3.5-turbo",  # Using GPT-4o for more creative results
                     messages=[{"role": "user", "content": prompt}],
                     temperature=0.9,
                     max_tokens=300,
@@ -409,8 +425,8 @@ class BrandGenerator:
                     return []
 
                 results = []
-                # Use a subset of extensions for domain checking to keep response time reasonable
-                extensions = ["com", "io", "ai", "app", "net", "co", "xyz", "me", "tech"]
+                # Use the extensions provided by the user
+                logger.info(f"Checking domains with extensions: {extensions}")
 
                 # Create all domain combinations
                 domain_checks = []
@@ -469,15 +485,6 @@ class BrandGenerator:
                     # Process domains in chunks using bulk API
                     results = []
                     chunk_size = 20  # Increased from 10 to 20 for better performance
-
-                    # Create all domain combinations
-                    domain_checks = []
-                    for name in brand_names:
-                        for ext in extensions:
-                            domain_checks.append((name, ext))
-                    logger.debug(
-                        f"Created {len(domain_checks)} domain combinations to check"
-                    )
 
                     # Process domains in chunks
                     for i in range(0, len(domain_checks), chunk_size):

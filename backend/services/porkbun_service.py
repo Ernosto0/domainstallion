@@ -3,7 +3,7 @@ import json
 import logging
 import aiohttp
 from typing import Dict
-
+import time
 logger = logging.getLogger(__name__)
 
 # Porkbun API configuration
@@ -27,9 +27,9 @@ async def get_porkbun_pricing() -> Dict:
     Caches results for 24 hours to reduce API calls.
     """
     global PORKBUN_PRICING_CACHE, CACHE_TIMESTAMP
-    import time
+    
 
-    print("AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA")
+
     # Check if we have cached data that's still valid
     current_time = time.time()
     if PORKBUN_PRICING_CACHE and (current_time - CACHE_TIMESTAMP < CACHE_TTL):

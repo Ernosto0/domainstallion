@@ -157,6 +157,7 @@ class BrandRequest(BaseModel):
     min_length: int = Field(default=3, ge=3, le=15)  # Minimum name length
     max_length: int = Field(default=15, ge=3, le=15)  # Maximum name length
     include_word: Optional[str] = None  # Optional word to include in generated names
+    extensions: List[str] = Field(default_factory=list)  # List of domain extensions to check
 
 
 class DomainInfo(BaseModel):
@@ -351,7 +352,7 @@ async def generate_names(request: BrandRequest):
     if not request.keywords:
         raise HTTPException(status_code=400, detail="Keywords are required")
 
-    if request.style not in ["short", "playful", "serious", "techy", "neutral"]:
+    if request.style not in ["short", "playful", "serious", "techy", "neutral", "creative"]:
         raise HTTPException(status_code=400, detail="Invalid style specified")
 
     if request.min_length > request.max_length:
@@ -359,6 +360,12 @@ async def generate_names(request: BrandRequest):
             status_code=400,
             detail="Minimum length cannot be greater than maximum length",
         )
+        
+    # Validate at least one extension is provided
+    if not request.extensions:
+        logger.debug("No extensions provided, will use defaults")
+    else:
+        logger.debug(f"Using custom extensions: {request.extensions}")
 
     try:
         generator = BrandGenerator()
@@ -376,6 +383,7 @@ async def generate_names(request: BrandRequest):
             min_length=request.min_length,
             max_length=request.max_length,
             include_word=request.include_word,
+            extensions=request.extensions,
         )
         logger.debug(f"Generated {len(results)} names")
 

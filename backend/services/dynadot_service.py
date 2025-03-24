@@ -45,11 +45,15 @@ def extract_registration_price(price_string: str) -> Optional[float]:
     return None
 
 
-async def get_dynadot_pricing() -> Dict:
+async def get_dynadot_pricing(requested_tlds=None) -> Dict:
     """
     Fetch domain pricing from Dynadot API asynchronously.
     Returns a dictionary of TLDs with their pricing information.
     Caches results for 24 hours to reduce API calls.
+    
+    Args:
+        requested_tlds: Optional list of TLDs to check pricing for.
+                       If None, only checks pricing for common TLDs.
     """
     global DYNADOT_PRICING_CACHE, CACHE_TIMESTAMP
 
@@ -57,6 +61,9 @@ async def get_dynadot_pricing() -> Dict:
     current_time = time.time()
     if DYNADOT_PRICING_CACHE and (current_time - CACHE_TIMESTAMP < CACHE_TTL):
         logger.debug("Using cached Dynadot pricing data")
+        # If we have requested specific TLDs, only return those
+        if requested_tlds:
+            return {tld: DYNADOT_PRICING_CACHE.get(tld) for tld in requested_tlds if tld in DYNADOT_PRICING_CACHE}
         return DYNADOT_PRICING_CACHE
 
     logger.info("Fetching Dynadot pricing data...")
@@ -68,14 +75,24 @@ async def get_dynadot_pricing() -> Dict:
 
     # Common TLDs to check for pricing
     common_tlds = ["com", "net", "org", "io", "ai", "app", "dev", "tech"]
+    
+    # If requested_tlds is provided, only check those TLDs
+    tlds_to_check = requested_tlds if requested_tlds else common_tlds
+    logger.info(f"Checking pricing for TLDs: {tlds_to_check}")
 
     # Create a pricing dictionary
     pricing_data = {}
 
     try:
         async with aiohttp.ClientSession() as session:
-            # Check pricing for common TLDs
-            for tld in common_tlds:
+            # Check pricing for requested TLDs
+            for tld in tlds_to_check:
+                # If we already have this TLD in cache and it's valid, skip checking
+                if tld in DYNADOT_PRICING_CACHE and (current_time - CACHE_TIMESTAMP < CACHE_TTL):
+                    pricing_data[tld] = DYNADOT_PRICING_CACHE[tld]
+                    logger.debug(f"Using cached price for .{tld}: ${DYNADOT_PRICING_CACHE[tld]}")
+                    continue
+                
                 # Create a sample domain for pricing check
                 sample_domain = f"example{int(time.time())}.{tld}"
 
@@ -147,15 +164,18 @@ async def get_dynadot_pricing() -> Dict:
                 except Exception as e:
                     logger.error(f"Error fetching Dynadot pricing for .{tld}: {str(e)}")
 
-            # Update cache
-            DYNADOT_PRICING_CACHE = pricing_data
+            # Update cache with new data, preserving existing cache data
+            DYNADOT_PRICING_CACHE.update(pricing_data)
             CACHE_TIMESTAMP = current_time
 
             logger.info(
-                f"Successfully cached pricing for {len(DYNADOT_PRICING_CACHE)} TLDs from Dynadot"
+                f"Successfully cached pricing for {len(pricing_data)} TLDs from Dynadot"
             )
 
-            return DYNADOT_PRICING_CACHE
+            # Only return requested TLDs if specified
+            if requested_tlds:
+                return {tld: pricing_data.get(tld) for tld in requested_tlds if tld in pricing_data}
+            return pricing_data
 
     except Exception as e:
         logger.error(f"Error fetching Dynadot pricing: {str(e)}")
