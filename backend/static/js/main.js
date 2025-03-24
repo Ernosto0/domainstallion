@@ -174,10 +174,11 @@ document.addEventListener('DOMContentLoaded', function() {
         form.addEventListener('submit', async function(e) {
             e.preventDefault();
             
-            // Hide advanced options menu
+            // Hide advanced options menu if it's open
             if (advancedOptions && advancedOptionsToggle) {
                 advancedOptions.style.display = 'none';
                 advancedOptionsToggle.innerHTML = '<i class="bi bi-gear"></i> Advanced Options';
+                advancedOptions.classList.remove('fade-in');
             }
             
             const keywords = document.getElementById('keywordInput').value.trim();
@@ -240,7 +241,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
 
                 const controller = new AbortController();
-                const timeoutId = setTimeout(() => controller.abort(), 30000); // 30-second timeout
+                const timeoutId = setTimeout(() => controller.abort(), 60000); // 30-second timeout
 
                 const response = await fetch('/api/generate', {
                     method: 'POST',
@@ -469,6 +470,24 @@ document.addEventListener('DOMContentLoaded', function() {
                         });
                         
                         domainsContainer.appendChild(toggleButton);
+                        
+                        // Add "Check More Extensions" button after the toggle button
+                        const checkMoreButton = document.createElement('button');
+                        checkMoreButton.className = 'btn btn-sm btn-outline-primary w-100 mt-2';
+                        checkMoreButton.innerHTML = '<i class="bi bi-search"></i> Check More Extensions';
+                        checkMoreButton.onclick = function(event) {
+                            checkMoreExtensions(event, brand.name);
+                        };
+                        domainsContainer.appendChild(checkMoreButton);
+                    } else {
+                        // If there are no additional domains, just add the "Check More Extensions" button
+                        const checkMoreButton = document.createElement('button');
+                        checkMoreButton.className = 'btn btn-sm btn-outline-primary w-100 mt-2';
+                        checkMoreButton.innerHTML = '<i class="bi bi-search"></i> Check More Extensions';
+                        checkMoreButton.onclick = function(event) {
+                            checkMoreExtensions(event, brand.name);
+                        };
+                        domainsContainer.appendChild(checkMoreButton);
                     }
                     
                     resultsDiv.appendChild(brandCardContainer);
@@ -1115,7 +1134,38 @@ function createDomainCard(brandName, ext, info, isFirstVariant = true) {
     domainCard.className = 'domain-card';
     
     const statusClass = info.available ? 'domain-available' : 'domain-unavailable';
-    const statusText = info.available ? `Available - ${info.price}` : 'Taken';
+    
+    // Format the price properly
+    let priceDisplay = 'N/A';
+    if (info.available) {
+        // Check if we have price_info
+        if (info.price_info && info.price_info.purchase) {
+            priceDisplay = `$${(info.price_info.purchase/1000000).toFixed(2)}`;
+        } 
+        // Check if we have a direct price field
+        else if (info.price && info.price !== 'undefined') {
+            // Try to parse if it's a string
+            if (typeof info.price === 'string' && info.price.includes('$')) {
+                priceDisplay = info.price;
+            } else {
+                // Otherwise format it properly
+                priceDisplay = `$${parseFloat(info.price).toFixed(2)}`;
+            }
+        }
+        // Check if we have providers data
+        else if (info.providers) {
+            // Find the first provider with a valid price
+            const providers = info.providers;
+            for (const provider of ['godaddy', 'porkbun', 'namesilo', 'dynadot']) {
+                if (providers[provider] && !isNaN(providers[provider])) {
+                    priceDisplay = `$${(providers[provider]/1000000).toFixed(2)}`;
+                    break;
+                }
+            }
+        }
+    }
+    
+    const statusText = info.available ? `Available - ${priceDisplay}` : 'Taken';
     
     // Ensure we have a valid score object
     const score = info.score || {
@@ -1342,7 +1392,7 @@ async function checkSocialMedia(event, brandName) {
     
     // Update button state
     button.disabled = true;
-    button.innerHTML = '<i class="bi bi-hourglass-split"></i> Checking...';
+   
     
     try {
         // Call the API
@@ -1857,6 +1907,206 @@ function adjustLoadingProgress(responseTime) {
     // If response was very slow (> 10s), jump to the final step
     else {
         updateLoadingStep(6);
+    }
+}
+
+// Add function to check more extensions for a domain
+async function checkMoreExtensions(event, brandName) {
+    event.preventDefault();
+    
+    console.log(`Checking more extensions for: ${brandName}`);
+    
+    // Get the button that was clicked
+    const button = event.target.closest('button');
+    if (!button) return;
+    
+    // Get the brand card
+    const brandCard = button.closest('.brand-card');
+    if (!brandCard) return;
+    
+    // Get the domains container
+    const domainsContainer = brandCard.querySelector('.domains-container');
+    if (!domainsContainer) return;
+    
+    // Disable the button and show loading state
+    button.disabled = true;
+    const originalButtonText = button.innerHTML;
+    button.innerHTML = '<i class="bi bi-hourglass-split"></i> Checking...';
+    
+    try {
+        // Get all currently displayed extensions
+        const displayedExtensions = [];
+        
+        // Check for the .com domain in the header
+        const headerDomain = brandCard.querySelector('h3');
+        if (headerDomain && headerDomain.textContent.includes('.')) {
+            const ext = headerDomain.textContent.split('.')[1];
+            displayedExtensions.push(ext);
+        }
+        
+        // Check for all other displayed extensions
+        brandCard.querySelectorAll('.domain-card .domain-name').forEach(domainEl => {
+            if (domainEl.textContent.includes('.')) {
+                const ext = domainEl.textContent.split('.')[1];
+                displayedExtensions.push(ext);
+            }
+        });
+        
+        console.log(`Already displayed extensions: ${displayedExtensions.join(',')}`);
+        
+        // Call API to check more extensions
+        const response = await fetch(`/api/check-more-extensions/${brandName}?checked_extensions=${displayedExtensions.join(',')}`);
+        
+        if (!response.ok) {
+            throw new Error(`Error: ${response.status}`);
+        }
+        
+        const data = await response.json();
+        console.log('Additional extension results:', data);
+        
+        // If no results, show message and hide the button
+        if (Object.keys(data).length === 0) {
+            button.style.display = 'none';
+            showToast('No additional extensions available', 'info');
+            return;
+        }
+        
+        // Get the remaining domains container or create it
+        let remainingContainer = domainsContainer.querySelector('.remaining-domains');
+        if (!remainingContainer) {
+            remainingContainer = document.createElement('div');
+            remainingContainer.className = 'remaining-domains';
+            domainsContainer.appendChild(remainingContainer);
+        }
+        
+        // Show the container if it was hidden
+        remainingContainer.style.display = 'block';
+        
+        // Process the results and add domain cards
+        for (const [fullDomain, info] of Object.entries(data)) {
+            // Skip if this domain is already displayed
+            const domainName = fullDomain.split('.')[0];
+            const extension = fullDomain.split('.')[1];
+            
+            // Check if this extension is already displayed
+            if (remainingContainer.querySelector(`.domain-name[data-extension="${extension}"]`)) {
+                console.log(`Extension ${extension} already displayed, skipping`);
+                continue;
+            }
+            
+            // Process price info and ensure we have a valid format
+            console.log(`Processing ${fullDomain} price info:`, info);
+            const processedInfo = { ...info };
+            
+            // Add additional logging to see what's in the data
+            if (processedInfo.price_info) {
+                console.log(`Price info for ${fullDomain}:`, processedInfo.price_info);
+            }
+            
+            if (processedInfo.providers) {
+                console.log(`Provider info for ${fullDomain}:`, processedInfo.providers);
+                
+                // If we have provider prices but no price field, set a default price
+                if (!processedInfo.price || processedInfo.price === 'undefined') {
+                    // Find the first provider with a valid price
+                    for (const provider of ['godaddy', 'porkbun', 'namesilo', 'dynadot']) {
+                        if (processedInfo.providers[provider] && !isNaN(processedInfo.providers[provider])) {
+                            processedInfo.price = `$${(processedInfo.providers[provider]/1000000).toFixed(2)}`;
+                            console.log(`Set price for ${fullDomain} from ${provider}: ${processedInfo.price}`);
+                            break;
+                        }
+                    }
+                }
+            }
+            
+            // Create the domain card with the processed info
+            const domainCard = createDomainCard(domainName, extension, processedInfo, false);
+            
+            // Add the extension data attribute to the domain name
+            const domainNameEl = domainCard.querySelector('.domain-name');
+            if (domainNameEl) {
+                domainNameEl.setAttribute('data-extension', extension);
+            }
+            
+            // Add the card to the container
+            remainingContainer.appendChild(domainCard);
+        }
+        
+        // Get or create the toggle button
+        let toggleButton = domainsContainer.querySelector('.toggle-domains');
+        if (!toggleButton) {
+            toggleButton = document.createElement('button');
+            toggleButton.className = 'btn btn-sm btn-outline-secondary w-100 mt-2 toggle-domains';
+            toggleButton.innerHTML = `
+                <span class="more-text" style="display: none;">Show More Extensions</span>
+                <span class="less-text">Hide Extensions</span>
+                <i class="bi bi-chevron-up"></i>
+            `;
+            
+            toggleButton.addEventListener('click', function() {
+                const remainingDomains = this.previousElementSibling;
+                const moreText = this.querySelector('.more-text');
+                const lessText = this.querySelector('.less-text');
+                const icon = this.querySelector('i');
+                
+                if (remainingDomains.style.display === 'none') {
+                    remainingDomains.style.display = 'block';
+                    moreText.style.display = 'none';
+                    lessText.style.display = 'inline';
+                    icon.classList.remove('bi-chevron-down');
+                    icon.classList.add('bi-chevron-up');
+                } else {
+                    remainingDomains.style.display = 'none';
+                    moreText.style.display = 'inline';
+                    lessText.style.display = 'none';
+                    icon.classList.remove('bi-chevron-up');
+                    icon.classList.add('bi-chevron-down');
+                }
+            });
+            
+            domainsContainer.appendChild(toggleButton);
+        } else {
+            // Update the count on the existing button
+            const moreText = toggleButton.querySelector('.more-text');
+            if (moreText) {
+                const extensionCount = remainingContainer.querySelectorAll('.domain-card').length;
+                moreText.textContent = `Show More Extensions (${extensionCount})`;
+            }
+        }
+        
+        // Hide the check more button
+        button.style.display = 'none';
+        
+        // Ensure the extensions are visible if they were hidden
+        if (remainingContainer && remainingContainer.style.display === 'none') {
+            remainingContainer.style.display = 'block';
+            
+            // Also update the toggle button if it exists
+            const toggleButton = domainsContainer.querySelector('.toggle-domains');
+            if (toggleButton) {
+                const moreText = toggleButton.querySelector('.more-text');
+                const lessText = toggleButton.querySelector('.less-text');
+                const icon = toggleButton.querySelector('i');
+                
+                if (moreText) moreText.style.display = 'none';
+                if (lessText) lessText.style.display = 'inline';
+                if (icon) icon.style.transform = 'rotate(180deg)';
+            }
+        }
+        
+        // Show a toast notification
+        const newExtensionsCount = Object.keys(data).length;
+        showToast(`Found ${newExtensionsCount} additional extensions`, 'success');
+        
+    } catch (error) {
+        console.error('Error checking more extensions:', error);
+        
+        // Reset the button
+        button.innerHTML = originalButtonText;
+        button.disabled = false;
+        
+        // Show error message
+        showToast('Failed to check additional extensions', 'error');
     }
 }
 

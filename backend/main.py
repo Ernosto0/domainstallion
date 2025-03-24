@@ -43,6 +43,7 @@ from .rate_limiter import (
     rate_limit,
     RateLimitExceeded,
 )
+from backend.services.check_more_extension import check_more_extensions
 
 # Create database tables
 Base.metadata.create_all(bind=engine)
@@ -682,4 +683,46 @@ async def test_domain_checker(domain: str):
     except Exception as e:
         logging.error(f"Error testing domain checker: {str(e)}")
         return {"error": str(e)}
+
+
+@app.get("/api/check-more-extensions/{domain_name}")
+@rate_limit(calls=30, period=3600)  # 30 requests per hour
+async def check_more_extensions_endpoint(
+    request: Request, 
+    domain_name: str, 
+    checked_extensions: str
+):
+    """
+    Check additional domain extensions for a given domain name.
+    
+    Args:
+        domain_name: Base domain name (without extension)
+        checked_extensions: Comma-separated list of already checked extensions
+    
+    Returns:
+        Dictionary mapping full domain names to availability information
+    """
+    try:
+        # Parse the already checked extensions
+        already_checked = checked_extensions.split(",") if checked_extensions else []
+        
+        # Ensure domain_name doesn't have any extensions in it
+        if "." in domain_name:
+            base_name = domain_name.split(".")[0]
+        else:
+            base_name = domain_name
+        
+        # Call the service to check additional extensions
+        logger = logging.getLogger(__name__)
+        logger.info(f"Checking more extensions for domain: {base_name}")
+        logger.info(f"Already checked extensions: {already_checked}")
+        
+        results = await check_more_extensions(base_name, already_checked)
+        return results
+    except Exception as e:
+        logger.error(f"Error checking more extensions for {domain_name}: {str(e)}")
+        raise HTTPException(
+            status_code=500, 
+            detail=f"Error checking more extensions: {str(e)}"
+        )
 
