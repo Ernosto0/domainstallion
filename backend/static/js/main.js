@@ -185,6 +185,7 @@ document.addEventListener('DOMContentLoaded', function() {
             const style = document.getElementById('styleSelect').value;
             const [minLength, maxLength] = lengthSlider.noUiSlider.get();
             const includeWord = document.getElementById('includeWord').value.trim();
+            const similarTo = document.getElementById('similarTo').value.trim();
             
             // Get selected domain extensions
             const selectedExtensions = [];
@@ -238,6 +239,11 @@ document.addEventListener('DOMContentLoaded', function() {
                 // Only add include_word if it's not empty
                 if (includeWord) {
                     requestBody.include_word = includeWord;
+                }
+                
+                // Add similar_to parameter if it's not empty
+                if (similarTo) {
+                    requestBody.similar_to = similarTo;
                 }
 
                 const controller = new AbortController();

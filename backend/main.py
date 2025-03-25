@@ -158,6 +158,7 @@ class BrandRequest(BaseModel):
     min_length: int = Field(default=3, ge=3, le=15)  # Minimum name length
     max_length: int = Field(default=15, ge=3, le=15)  # Maximum name length
     include_word: Optional[str] = None  # Optional word to include in generated names
+    similar_to: Optional[str] = None  # Optional domain name to generate similar alternatives
     extensions: List[str] = Field(default_factory=list)  # List of domain extensions to check
 
 
@@ -384,6 +385,7 @@ async def generate_names(request: BrandRequest):
             min_length=request.min_length,
             max_length=request.max_length,
             include_word=request.include_word,
+            similar_to=request.similar_to,
             extensions=request.extensions,
         )
         logger.debug(f"Generated {len(results)} names")
@@ -617,17 +619,6 @@ async def get_watchlist(
     # Your existing code here
     pass
 
-
-@app.get("/check-trademark/{domain}")
-@rate_limit(calls=50, period=3600)  # 50 requests per hour due to USPTO API limits
-async def check_trademark_endpoint(request: Request, domain: str):
-    try:
-        result = await check_trademark(domain)
-        return result
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
-
-
 @app.get("/check-social-media/{username}")
 @rate_limit(
     calls=20, period=3600
@@ -639,50 +630,6 @@ async def check_social_media_endpoint(request: Request, username: str):
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
-
-@app.get("/api/test-domain-checker/{domain}")
-async def test_domain_checker(domain: str):
-    """
-    Test endpoint for the domain checker
-    """
-    try:
-        # Split domain into name and extension
-        parts = domain.split(".")
-        if len(parts) != 2:
-            return {"error": "Invalid domain format. Use format: example.com"}
-
-        domain_name, extension = parts
-
-        # Import the domain checker
-        from backend.services.domain_checker import check_domain_availability
-
-        # Check domain availability
-        is_available, price_info = await check_domain_availability(
-            domain_name, extension
-        )
-
-        # Get the cached result to check providers
-        from backend.services.domain_checker import get_from_cache
-
-        cached_result = get_from_cache(domain)
-        providers = cached_result.get("providers", {}) if cached_result else {}
-
-        logging.info(f"Test domain checker result for {domain}:")
-        logging.info(f"Available: {is_available}")
-        logging.info(f"Price info: {price_info}")
-        logging.info(f"Providers: {providers}")
-
-        # Return the result
-        return {
-            "domain": domain,
-            "available": is_available,
-            "price_info": price_info,
-            "providers": providers,
-            "timestamp": time.time(),
-        }
-    except Exception as e:
-        logging.error(f"Error testing domain checker: {str(e)}")
-        return {"error": str(e)}
 
 
 @app.get("/api/check-more-extensions/{domain_name}")

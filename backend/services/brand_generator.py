@@ -42,7 +42,7 @@ DOMAIN_EXTENSIONS = [
 ]
 
 # Chunk size for concurrent API calls
-CHUNK_SIZE = 20  # Increased from 20 to 30 for better batch processing
+CHUNK_SIZE = 20  
 
 if not api_key:
     raise ValueError("OPENAI_API_KEY not found in environment variables")
@@ -227,6 +227,7 @@ class BrandGenerator:
         min_length=3,
         max_length=15,
         include_word=None,
+        similar_to=None,
         extensions=None,  # New parameter for custom extensions
     ):
         try:
@@ -306,6 +307,20 @@ class BrandGenerator:
                 else ""
             )
 
+            # Build the similar_to part of the prompt
+            similar_to_prefix = (
+                f"\nIMPORTANT: Generate names that are similar in style, sound, or concept to '{similar_to}'. Use similar patterns, suffixes, or word structures, but make them unique enough to be distinctive."
+                if similar_to
+                else ""
+            )
+            
+            
+            similar_to_rule = (
+                f"11. Generate names with similar style, phonetics, or concept to '{similar_to}', but distinct enough to be unique"
+                if similar_to
+                else ""
+            )
+
             creativity_boost = """
             IMPORTANT CREATIVITY GUIDELINES:
             - Create truly UNIQUE and DISTINCTIVE names that are unlikely to be taken
@@ -319,7 +334,7 @@ class BrandGenerator:
             - DO NOT use common dictionary words as standalone names
             """
 
-            prompt = f"""{word_inclusion_prefix}Generate {num_suggestions} unique and creative brand names based on these keywords: {keywords}.
+            prompt = f"""{word_inclusion_prefix}{similar_to_prefix}Generate {num_suggestions} unique and creative brand names based on these keywords: {keywords}.
             Style requirement: {style_guide}
             
             {creativity_boost}
@@ -333,6 +348,7 @@ class BrandGenerator:
             6. Do not include numbers or dots in the names
             7. Ensure names match the requested style: {style}
             {word_inclusion}
+            {similar_to_rule}
             9. AVOID using any common words as standalone names, they are likely taken
             10. CREATE highly distinctive names, not obvious combinations of the keywords
             
@@ -344,7 +360,7 @@ class BrandGenerator:
             try:
                 logger.debug("Starting OpenAI API call")
                 logger.debug(
-                    f"Using parameters - min_length: {min_length}, max_length: {max_length}, include_word: {include_word}"
+                    f"Using parameters - min_length: {min_length}, max_length: {max_length}, include_word: {include_word}, similar_to: {similar_to}"
                 )
                 response = self.client.chat.completions.create(
                     model="gpt-3.5-turbo",  # Using GPT-4o for more creative results
