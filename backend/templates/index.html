@@ -19,19 +19,18 @@
             </button>
             <div class="collapse navbar-collapse" id="navbarNav">
                 <ul class="navbar-nav ms-auto">
-                    <li class="nav-item" id="loginRegisterNav">
-                        <button class="btn btn-outline-primary me-2" data-bs-toggle="modal" data-bs-target="#loginModal">Login</button>
-                        <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#registerModal">Register</button>
+                    <li class="nav-item me-2" id="loginRegisterNav">
+                        <div class="d-flex">
+                            <button class="btn btn-outline-primary me-2" data-bs-toggle="modal" data-bs-target="#loginModal">Login</button>
+                            <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#registerModal">Register</button>
+                        </div>
                     </li>
+                    
                     <li class="nav-item d-none" id="userNav">
-                        <div class="dropdown">
-                            <button class="btn btn-outline-primary dropdown-toggle" type="button" id="userDropdown" data-bs-toggle="dropdown">
-                                <span id="username"></span>
-                            </button>
-                            <ul class="dropdown-menu">
-                                <li><a class="dropdown-item" href="#" id="viewFavorites">My Favorites</a></li>
-                                <li><a class="dropdown-item" href="#" id="logout">Logout</a></li>
-                            </ul>
+                        <div class="d-flex align-items-center flex-wrap">
+                            <span class="navbar-text me-3 mb-2 mb-lg-0">Hello, <span id="username"></span></span>
+                            <a href="#" class="btn btn-outline-primary me-2 mb-2 mb-lg-0" id="viewFavorites">My Favorites</a>
+                            <a href="#" class="btn btn-outline-danger mb-2 mb-lg-0" id="logout">Logout</a>
                         </div>
                     </li>
                 </ul>
@@ -288,7 +287,7 @@
         <div class="container">
             <div class="footer-content">
                 <div class="footer-copyright">
-                    © 2024 Domain Generator. All rights reserved.
+                    © 2025 Domain Generator. All rights reserved.
                 </div>
                 <div class="footer-links">
                     <a href="/">Home</a>
