@@ -1779,46 +1779,95 @@ function removeFromWatchlist(watchlistId) {
     fetch(`/watchlist/${watchlistId}`, {
         method: 'DELETE',
         headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${localStorage.getItem('authToken')}`
+            'Authorization': `Bearer ${authToken}`
         }
     })
     .then(response => {
         if (response.ok) {
-            // Remove the card from the UI
+            // Remove the card from the DOM
             const card = document.querySelector(`[data-watchlist-id="${watchlistId}"]`);
             if (card) {
-                card.classList.add('fade-out');
-                setTimeout(() => {
-                    card.remove();
-                    
-                    // Update the count
-                    const watchlistCount = document.getElementById('watchlistCount');
-                    if (watchlistCount) {
-                        const currentCount = parseInt(watchlistCount.textContent);
-                        watchlistCount.textContent = Math.max(0, currentCount - 1);
-                    }
-                    
-                    // Show message if no watchlist items left
-                    const watchlistList = document.querySelector('.watchlist-list');
-                    if (watchlistList && watchlistList.children.length === 0) {
-                        watchlistList.innerHTML = '<div class="col-12 text-center py-5"><p class="text-muted">You have no domains in your watchlist yet.</p></div>';
-                    }
-                }, 300);
+                card.closest('.col-md-6').remove();
+            } else {
+                // If we can't find by data attribute, try to find the button and navigate up
+                const button = document.querySelector(`button[onclick*="removeFromWatchlist(${watchlistId})"]`);
+                if (button) {
+                    button.closest('.col-md-6').remove();
+                }
+            }
+            
+            // Update the count
+            const count = document.getElementById('watchlistCount');
+            if (count) {
+                count.textContent = parseInt(count.textContent) - 1;
             }
             
             showToast('Domain removed from watchlist', 'success');
         } else {
-            response.json().then(errorData => {
-                showToast(errorData.detail || 'Failed to remove domain from watchlist', 'error');
-            }).catch(() => {
-                showToast('Failed to remove domain from watchlist', 'error');
-            });
+            showToast('Failed to remove domain', 'error');
         }
     })
     .catch(error => {
         console.error('Error removing from watchlist:', error);
-        showToast('Failed to remove domain from watchlist', 'error');
+        showToast('An error occurred', 'error');
+    });
+}
+
+// Toggle alert function for notification toggle
+function toggleAlert(watchlistId, button) {
+    console.log("toggleAlert called with ID:", watchlistId);
+    const currentState = button.getAttribute('data-notify') === 'true';
+    const newState = !currentState;
+    
+    fetch(`/watchlist/${watchlistId}/notify`, {
+        method: 'PUT',  // Changed from PATCH to PUT
+        headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${authToken}`
+        },
+        body: JSON.stringify({
+            notify_when_available: newState
+        })
+    })
+    .then(response => {
+        if (response.ok) {
+            // Update button state
+            button.setAttribute('data-notify', newState.toString());
+            button.classList.toggle('active', newState);
+            
+            // Update icon
+            const icon = button.querySelector('i');
+            if (icon) {
+                if (newState) {
+                    icon.classList.remove('bi-bell-slash');
+                    icon.classList.add('bi-bell');
+                    button.setAttribute('title', 'Notifications enabled');
+                } else {
+                    icon.classList.remove('bi-bell');
+                    icon.classList.add('bi-bell-slash');
+                    button.setAttribute('title', 'Get notified when available');
+                }
+            }
+            
+            // Update tooltip
+            const tooltip = bootstrap.Tooltip.getInstance(button);
+            if (tooltip) {
+                tooltip.dispose();
+                new bootstrap.Tooltip(button);
+            }
+            
+            showToast(newState ? 'Notifications enabled' : 'Notifications disabled', 'success');
+        } else {
+            response.json().then(errorData => {
+                showToast(errorData.detail || 'Failed to update notification settings', 'error');
+            }).catch(() => {
+                showToast('Failed to update notification settings', 'error');
+            });
+        }
+    })
+    .catch(error => {
+        console.error('Error toggling alert:', error);
+        showToast('Failed to update notification settings', 'error');
     });
 }
 
@@ -2115,4 +2164,5 @@ async function checkMoreExtensions(event, brandName) {
         showToast('Failed to check additional extensions', 'error');
     }
 }
+
 

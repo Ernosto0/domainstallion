@@ -281,7 +281,7 @@ class BrandGenerator:
 
             # Style-specific guidelines
             style_guidelines = {
-                "short": "Names should be concise, preferably 3-6 characters.",
+                "short": "Names should be concise, preferably 6-9 characters.",
                 "playful": "Names should be fun, memorable, and potentially use wordplay or rhyming.",
                 "serious": "Names should be professional, trustworthy, and business-oriented.",
                 "techy": "Names should sound innovative, modern, and tech-savvy, potentially using tech-related suffixes.",
