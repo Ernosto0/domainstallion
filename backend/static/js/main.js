@@ -310,9 +310,9 @@ document.addEventListener('DOMContentLoaded', function() {
                                 </div>
                                 <div class="d-flex align-items-center gap-2">
                                     <span class="domain-badge ${brand.domains.com?.available ? 'domain-available' : 'domain-unavailable'}">
-                                        ${brand.domains.com?.available ? `Available - ${brand.domains.com?.price}` : 'Taken'}
+                                        ${brand.domains.com?.available ? `${brand.domains.com?.price}` : 'Taken'}
                                     </span>
-                                    <span class="badge bg-secondary">#${document.querySelectorAll('.brand-card').length + index + 1}</span>
+                                    
                                 </div>
                             </div>
                             <div class="trademark-result"></div>
@@ -1171,7 +1171,7 @@ function createDomainCard(brandName, ext, info, isFirstVariant = true) {
         }
     }
     
-    const statusText = info.available ? `Available - ${priceDisplay}` : 'Taken';
+    const statusText = info.available ? `${priceDisplay}` : 'Taken';
     
     // Ensure we have a valid score object
     const score = info.score || {
@@ -1635,7 +1635,7 @@ function updateDomainCardPrice(domain, price, provider) {
                 
                 // If there was no price before, add it
                 if (newBadgeText === badgeText && !newBadgeText.includes(price)) {
-                    domainBadge.textContent = `Available - ${price}`;
+                    domainBadge.textContent = `${price}`;
                 } else {
                     domainBadge.textContent = newBadgeText;
                 }
@@ -1669,7 +1669,7 @@ function updateDomainCardPrice(domain, price, provider) {
                 
                 // If there was no price before, add it
                 if (newBadgeText === badgeText && !newBadgeText.includes(price)) {
-                    domainBadge.textContent = `Available - ${price}`;
+                    domainBadge.textContent = `${price}`;
                 } else {
                     domainBadge.textContent = newBadgeText;
                 }
