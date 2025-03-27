@@ -33,16 +33,33 @@ def extract_registration_price(price_string: str) -> Optional[float]:
     if not price_string:
         return None
 
-    # Use regex to extract the registration price
+    # Add debug logging
+    logger.debug(f"Extracting price from price string: {price_string}")
+
+    # Use regex to extract the registration price - improve pattern to handle more formats
     match = re.search(r"Registration Price: (\d+\.\d+)", price_string)
     if match:
         try:
-            return float(match.group(1))
+            price = float(match.group(1))
+            logger.debug(f"Successfully extracted price: {price}")
+            return price
         except (ValueError, TypeError):
             logger.error(f"Failed to convert price to float: {match.group(1)}")
             return None
-
-    return None
+    else:
+        # Try alternative pattern that might be used for some TLDs
+        alt_match = re.search(r"(\d+\.\d+) USD", price_string)
+        if alt_match:
+            try:
+                price = float(alt_match.group(1))
+                logger.debug(f"Extracted price using alternative pattern: {price}")
+                return price
+            except (ValueError, TypeError):
+                logger.error(f"Failed to convert alternative price to float: {alt_match.group(1)}")
+                return None
+        
+        logger.warning(f"No price pattern matched in string: {price_string}")
+        return None
 
 
 async def get_dynadot_pricing(requested_tlds=None) -> Dict:
@@ -72,7 +89,10 @@ async def get_dynadot_pricing(requested_tlds=None) -> Dict:
         # If we have requested specific TLDs, only return those
         if requested_tlds:
             logger.info(f"Returning cached pricing for requested TLDs: {requested_tlds}")
-            return {tld: DYNADOT_PRICING_CACHE.get(tld) for tld in requested_tlds if tld in DYNADOT_PRICING_CACHE}
+            result = {tld: DYNADOT_PRICING_CACHE.get(tld) for tld in requested_tlds if tld in DYNADOT_PRICING_CACHE}
+            logger.debug(f"Cached prices being returned: {result}")
+            return result
+        logger.debug(f"Full cache contents: {DYNADOT_PRICING_CACHE}")
         return DYNADOT_PRICING_CACHE
 
     # If we're here, we need to fetch new pricing data
@@ -174,11 +194,17 @@ async def get_dynadot_pricing(requested_tlds=None) -> Dict:
             logger.info(
                 f"Successfully cached pricing for {len(pricing_data)} TLDs from Dynadot"
             )
+            
+            logger.debug(f"Updated Dynadot pricing cache: {DYNADOT_PRICING_CACHE}")
 
             # Only return requested TLDs if specified
             if requested_tlds:
                 logger.info(f"Returning pricing for requested TLDs: {requested_tlds}")
-                return {tld: pricing_data.get(tld) for tld in requested_tlds if tld in pricing_data}
+                result = {tld: pricing_data.get(tld) for tld in requested_tlds if tld in pricing_data}
+                logger.debug(f"Prices being returned: {result}")
+                return result
+            
+            logger.debug(f"Returning all pricing data: {pricing_data}")
             return pricing_data
 
     except Exception as e:

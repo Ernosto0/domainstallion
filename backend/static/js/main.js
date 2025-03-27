@@ -1163,7 +1163,7 @@ function createDomainCard(brandName, ext, info, isFirstVariant = true) {
             // Find the first provider with a valid price
             const providers = info.providers;
             for (const provider of ['godaddy', 'porkbun', 'namesilo', 'dynadot']) {
-                if (providers[provider] && !isNaN(providers[provider])) {
+                if (providers[provider] && providers[provider] !== null && !isNaN(providers[provider])) {
                     priceDisplay = `$${(providers[provider]/1000000).toFixed(2)}`;
                     break;
                 }
@@ -1206,7 +1206,20 @@ function createDomainCard(brandName, ext, info, isFirstVariant = true) {
     const formatPrice = (price) => {
         console.log(`Formatting price: ${price}, type: ${typeof price}`);
         if (price === undefined || price === null) return 'N/A';
-        return `$${(price/1000000).toFixed(2)}`;
+        
+        // Ensure we're working with a number
+        let numPrice = price;
+        if (typeof price === 'string' && !isNaN(parseFloat(price))) {
+            numPrice = parseFloat(price);
+        }
+        
+        // Format to 2 decimal places
+        if (typeof numPrice === 'number') {
+            return `$${(numPrice/1000000).toFixed(2)}`;
+        } else {
+            console.warn(`Unable to format price: ${price} (${typeof price})`);
+            return 'N/A';
+        }
     };
     
     // Create provider dropdown items with prices
@@ -1228,12 +1241,23 @@ function createDomainCard(brandName, ext, info, isFirstVariant = true) {
         providerDropdownItems += `<li><a class="dropdown-item provider-option" href="#" data-provider="porkbun" data-domain="${brandName}.${ext}">Porkbun</a></li>`;
     }
     
-    // Dynadot option (if price available)
-    console.log(`Checking Dynadot price for ${brandName}.${ext}: ${providers.dynadot}`);
-    if (providers.dynadot !== undefined) {
-        const dynadotPrice = formatPrice(providers.dynadot);
-        console.log(`Dynadot price for ${brandName}.${ext}: ${dynadotPrice} (raw: ${providers.dynadot})`);
-        providerDropdownItems += `<li><a class="dropdown-item provider-option" href="#" data-provider="dynadot" data-domain="${brandName}.${ext}">Dynadot ${dynadotPrice}</a></li>`;
+    // Dynadot option (if price available) - Enhanced handling
+    console.log(`Checking Dynadot price for ${brandName}.${ext}: ${providers.dynadot} (type: ${typeof providers.dynadot})`);
+    if (providers.dynadot !== undefined && providers.dynadot !== null) {
+        try {
+            // Ensure dynadot price is a number
+            let dynadotPrice;
+            if (typeof providers.dynadot === 'string' && !isNaN(parseFloat(providers.dynadot))) {
+                dynadotPrice = formatPrice(parseFloat(providers.dynadot));
+            } else {
+                dynadotPrice = formatPrice(providers.dynadot);
+            }
+            console.log(`Dynadot price for ${brandName}.${ext}: ${dynadotPrice} (raw: ${providers.dynadot})`);
+            providerDropdownItems += `<li><a class="dropdown-item provider-option" href="#" data-provider="dynadot" data-domain="${brandName}.${ext}">Dynadot ${dynadotPrice}</a></li>`;
+        } catch (e) {
+            console.error(`Error formatting Dynadot price: ${e}`);
+            providerDropdownItems += `<li><a class="dropdown-item provider-option" href="#" data-provider="dynadot" data-domain="${brandName}.${ext}">Dynadot</a></li>`;
+        }
     } else {
         console.log(`No Dynadot price available for ${brandName}.${ext}`);
         providerDropdownItems += `<li><a class="dropdown-item provider-option" href="#" data-provider="dynadot" data-domain="${brandName}.${ext}">Dynadot</a></li>`;
@@ -1251,7 +1275,6 @@ function createDomainCard(brandName, ext, info, isFirstVariant = true) {
     }
     
     // Other providers (without pricing for now)
-    providerDropdownItems += `<li><a class="dropdown-item provider-option" href="#" data-provider="namespace" data-domain="${brandName}.${ext}">Namespace</a></li>`;
     providerDropdownItems += `<li><a class="dropdown-item provider-option" href="#" data-provider="namecheap" data-domain="${brandName}.${ext}">Namecheap</a></li>`;
     
     // Create the base HTML structure with improved layout
@@ -1977,16 +2000,22 @@ async function checkMoreExtensions(event, brandName) {
     
     // Get the brand card
     const brandCard = button.closest('.brand-card');
-    if (!brandCard) return;
+    if (!brandCard) {
+        console.error('Brand card not found');
+        return;
+    }
     
     // Get the domains container
     const domainsContainer = brandCard.querySelector('.domains-container');
-    if (!domainsContainer) return;
+    if (!domainsContainer) {
+        console.error('Domains container not found');
+        return;
+    }
     
     // Disable the button and show loading state
     button.disabled = true;
     const originalButtonText = button.innerHTML;
-    button.innerHTML = '<i class="bi bi-hourglass-split"></i> Checking...';
+    button.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Checking...';
     
     try {
         // Get all currently displayed extensions
@@ -1999,7 +2028,7 @@ async function checkMoreExtensions(event, brandName) {
             displayedExtensions.push(ext);
         }
         
-        // Check for all other displayed extensions
+        // Check for all other displayed extensions in domain cards
         brandCard.querySelectorAll('.domain-card .domain-name').forEach(domainEl => {
             if (domainEl.textContent.includes('.')) {
                 const ext = domainEl.textContent.split('.')[1];
@@ -2032,6 +2061,9 @@ async function checkMoreExtensions(event, brandName) {
             remainingContainer = document.createElement('div');
             remainingContainer.className = 'remaining-domains';
             domainsContainer.appendChild(remainingContainer);
+        } else {
+            // Clear any existing content in the container to avoid duplicates
+            remainingContainer.innerHTML = '';
         }
         
         // Show the container if it was hidden
@@ -2039,115 +2071,49 @@ async function checkMoreExtensions(event, brandName) {
         
         // Process the results and add domain cards
         for (const [fullDomain, info] of Object.entries(data)) {
-            // Skip if this domain is already displayed
             const domainName = fullDomain.split('.')[0];
             const extension = fullDomain.split('.')[1];
             
-            // Check if this extension is already displayed
-            if (remainingContainer.querySelector(`.domain-name[data-extension="${extension}"]`)) {
-                console.log(`Extension ${extension} already displayed, skipping`);
-                continue;
-            }
+            // Enhanced debugging for price info
+            console.log(`Processing ${fullDomain} price info:`, JSON.stringify(info));
             
-            // Process price info and ensure we have a valid format
-            console.log(`Processing ${fullDomain} price info:`, info);
-            const processedInfo = { ...info };
+            // Make a deep copy to avoid modifying the original data
+            const processedInfo = JSON.parse(JSON.stringify(info));
             
-            // Add additional logging to see what's in the data
-            if (processedInfo.price_info) {
-                console.log(`Price info for ${fullDomain}:`, processedInfo.price_info);
-            }
-            
-            if (processedInfo.providers) {
-                console.log(`Provider info for ${fullDomain}:`, processedInfo.providers);
+            // Ensure Dynadot price is properly handled
+            if (processedInfo.providers && processedInfo.providers.dynadot !== undefined) {
+                // Log the raw Dynadot price for debugging
+                console.log(`Raw Dynadot price for ${fullDomain}: ${processedInfo.providers.dynadot} (type: ${typeof processedInfo.providers.dynadot})`);
                 
-                // If we have provider prices but no price field, set a default price
-                if (!processedInfo.price || processedInfo.price === 'undefined') {
-                    // Find the first provider with a valid price
-                    for (const provider of ['godaddy', 'porkbun', 'namesilo', 'dynadot']) {
-                        if (processedInfo.providers[provider] && !isNaN(processedInfo.providers[provider])) {
-                            processedInfo.price = `$${(processedInfo.providers[provider]/1000000).toFixed(2)}`;
-                            console.log(`Set price for ${fullDomain} from ${provider}: ${processedInfo.price}`);
-                            break;
-                        }
+                // Handle Dynadot price correctly regardless of type
+                if (typeof processedInfo.providers.dynadot === 'string') {
+                    // Convert string to number if possible
+                    const parsed = parseFloat(processedInfo.providers.dynadot);
+                    if (!isNaN(parsed)) {
+                        processedInfo.providers.dynadot = parsed;
+                        console.log(`Converted Dynadot string price to number: ${parsed}`);
                     }
+                }
+                
+                // Make sure null values don't cause issues
+                if (processedInfo.providers.dynadot === null) {
+                    console.log(`Removing null Dynadot price for ${fullDomain}`);
+                    delete processedInfo.providers.dynadot;
                 }
             }
             
             // Create the domain card with the processed info
+            console.log(`Creating domain card with processed info for ${fullDomain}`);
             const domainCard = createDomainCard(domainName, extension, processedInfo, false);
-            
-            // Add the extension data attribute to the domain name
-            const domainNameEl = domainCard.querySelector('.domain-name');
-            if (domainNameEl) {
-                domainNameEl.setAttribute('data-extension', extension);
-            }
             
             // Add the card to the container
             remainingContainer.appendChild(domainCard);
         }
         
-        // Get or create the toggle button
-        let toggleButton = domainsContainer.querySelector('.toggle-domains');
-        if (!toggleButton) {
-            toggleButton = document.createElement('button');
-            toggleButton.className = 'btn btn-sm btn-outline-secondary w-100 mt-2 toggle-domains';
-            toggleButton.innerHTML = `
-                <span class="more-text" style="display: none;">Show More Extensions</span>
-                <span class="less-text">Hide Extensions</span>
-                <i class="bi bi-chevron-up"></i>
-            `;
-            
-            toggleButton.addEventListener('click', function() {
-                const remainingDomains = this.previousElementSibling;
-                const moreText = this.querySelector('.more-text');
-                const lessText = this.querySelector('.less-text');
-                const icon = this.querySelector('i');
-                
-                if (remainingDomains.style.display === 'none') {
-                    remainingDomains.style.display = 'block';
-                    moreText.style.display = 'none';
-                    lessText.style.display = 'inline';
-                    icon.classList.remove('bi-chevron-down');
-                    icon.classList.add('bi-chevron-up');
-                } else {
-                    remainingDomains.style.display = 'none';
-                    moreText.style.display = 'inline';
-                    lessText.style.display = 'none';
-                    icon.classList.remove('bi-chevron-up');
-                    icon.classList.add('bi-chevron-down');
-                }
-            });
-            
-            domainsContainer.appendChild(toggleButton);
-        } else {
-            // Update the count on the existing button
-            const moreText = toggleButton.querySelector('.more-text');
-            if (moreText) {
-                const extensionCount = remainingContainer.querySelectorAll('.domain-card').length;
-                moreText.textContent = `Show More Extensions (${extensionCount})`;
-            }
-        }
-        
-        // Hide the check more button
+        // Reset the button but keep it hidden since we've shown the results
+        button.innerHTML = originalButtonText;
+        button.disabled = false;
         button.style.display = 'none';
-        
-        // Ensure the extensions are visible if they were hidden
-        if (remainingContainer && remainingContainer.style.display === 'none') {
-            remainingContainer.style.display = 'block';
-            
-            // Also update the toggle button if it exists
-            const toggleButton = domainsContainer.querySelector('.toggle-domains');
-            if (toggleButton) {
-                const moreText = toggleButton.querySelector('.more-text');
-                const lessText = toggleButton.querySelector('.less-text');
-                const icon = toggleButton.querySelector('i');
-                
-                if (moreText) moreText.style.display = 'none';
-                if (lessText) lessText.style.display = 'inline';
-                if (icon) icon.style.transform = 'rotate(180deg)';
-            }
-        }
         
         // Show a toast notification
         const newExtensionsCount = Object.keys(data).length;

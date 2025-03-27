@@ -109,6 +109,7 @@ async def check_domain_availability(
 
     full_domain = f"{domain_name}.{extension}"
     logger.info(f"Checking availability for domain: {full_domain}")
+    logger.debug(f"Current DYNADOT_PRICING: {DYNADOT_PRICING}")
 
     # Check cache first
     cached_result = get_from_cache(full_domain)
@@ -147,140 +148,169 @@ async def check_domain_availability(
             "Accept": "application/json",
         }
 
-        domain_result = await check_single_domain(full_domain, headers, session)
-
-        # Get pricing data from all providers concurrently if domain is available
-        if domain_result.get("available", False):
+        # Create tasks for all provider checks concurrently
+        tasks = []
+        
+        # GoDaddy domain check
+        godaddy_task = check_single_domain(full_domain, headers, session)
+        tasks.append(godaddy_task)
+        
+        # Prepare provider pricing tasks
+        pricing_tasks = []
+        
+        # Only get Porkbun pricing if needed
+        if not PORKBUN_PRICING:
+            pricing_tasks.append(get_porkbun_pricing())
+        
+        # Only get Dynadot pricing for this specific extension if needed
+        if extension not in DYNADOT_PRICING or "error" in DYNADOT_PRICING:
+            logger.info(f"Fetching Dynadot pricing only for .{extension}")
+            pricing_tasks.append(get_dynadot_pricing([extension]))
+        else:
+            logger.info(f"Using cached Dynadot pricing for .{extension}: {DYNADOT_PRICING.get(extension)}")
+        
+        # Only get Namesilo pricing for this specific extension if needed
+        if not NAMESILO_PRICING or extension not in NAMESILO_PRICING:
+            logger.info(f"Fetching Namesilo pricing for .{extension}")
+            pricing_tasks.append(get_namesilo_pricing([extension]))
+        else:
+            logger.info(f"Using cached Namesilo pricing for .{extension}")
+        
+        # Direct Dynadot domain check
+        dynadot_task = check_dynadot_domain(full_domain)
+        tasks.append(dynadot_task)
+        
+        # Run all tasks concurrently
+        all_results = await asyncio.gather(*tasks, return_exceptions=True)
+        
+        # Process GoDaddy result
+        domain_result = all_results[0]
+        if isinstance(domain_result, Exception):
+            logger.error(f"Error in GoDaddy check for {full_domain}: {str(domain_result)}")
+            domain_result = {
+                "available": False,
+                "price_info": None,
+                "error": str(domain_result),
+            }
+        
+        # Process Dynadot result
+        dynadot_result = all_results[1]
+        if isinstance(dynadot_result, Exception):
+            logger.error(f"Error in Dynadot check for {full_domain}: {str(dynadot_result)}")
+            dynadot_result = {
+                "available": False,
+                "price": None,
+                "error": str(dynadot_result),
+            }
+        
+        # If the domain is available, run pricing tasks concurrently and process them
+        if domain_result.get("available", False) and pricing_tasks:
             logger.info(f"Domain {full_domain} is available, fetching pricing data")
-
-            # Only get pricing for the specific extension we're checking
-            pricing_tasks = []
+            pricing_results = await asyncio.gather(*pricing_tasks, return_exceptions=True)
+            
+            # Process pricing results
+            pricing_index = 0
             if not PORKBUN_PRICING:
-                pricing_tasks.append(get_porkbun_pricing())
-            
-            # Only get Dynadot pricing for this specific extension
-            # Check if we already have pricing for this extension cached
-            if extension not in DYNADOT_PRICING or "error" in DYNADOT_PRICING:
-                logger.info(f"Fetching Dynadot pricing only for .{extension}")
-                pricing_tasks.append(get_dynadot_pricing([extension]))
-            else:
-                logger.info(f"Using cached Dynadot pricing for .{extension}")
-            
-            # Only get Namesilo pricing for this specific extension if needed
-            if not NAMESILO_PRICING or extension not in NAMESILO_PRICING:
-                logger.info(f"Fetching Namesilo pricing for .{extension}")
-                pricing_tasks.append(get_namesilo_pricing([extension]))
-            else:
-                logger.info(f"Using cached Namesilo pricing for .{extension}")
+                result = pricing_results[pricing_index]
+                if not isinstance(result, Exception):
+                    PORKBUN_PRICING = result
+                pricing_index += 1
 
-            if pricing_tasks:
-                # Run pricing data fetching concurrently
-                pricing_results = await asyncio.gather(
-                    *pricing_tasks, return_exceptions=True
+            # Only process Dynadot results if we requested them
+            if extension not in DYNADOT_PRICING or "error" in DYNADOT_PRICING:
+                result = (
+                    pricing_results[pricing_index]
+                    if pricing_index < len(pricing_results)
+                    else None
+                )
+                if result and not isinstance(result, Exception):
+                    # If DYNADOT_PRICING is empty, set it to the result
+                    # Otherwise, update the existing cache with the new data
+                    if not DYNADOT_PRICING:
+                        DYNADOT_PRICING = result
+                    else:
+                        DYNADOT_PRICING.update(result)
+                    logger.debug(f"Updated DYNADOT_PRICING after API call: {DYNADOT_PRICING}")
+                pricing_index += 1
+
+            # Only process Namesilo results if we requested them
+            if not NAMESILO_PRICING or extension not in NAMESILO_PRICING:
+                result = (
+                    pricing_results[pricing_index]
+                    if pricing_index < len(pricing_results)
+                    else None
+                )
+                if result and not isinstance(result, Exception):
+                    # If NAMESILO_PRICING is empty, set it to the result
+                    # Otherwise, update the existing cache with the new data
+                    if not NAMESILO_PRICING:
+                        NAMESILO_PRICING = result
+                    else:
+                        NAMESILO_PRICING.update(result)
+        
+        # Add provider prices to the result
+        if "providers" not in domain_result:
+            domain_result["providers"] = {}
+
+        # Add GoDaddy price to providers
+        godaddy_price = domain_result.get("price_info", {}).get("purchase", 0)
+        domain_result["providers"]["godaddy"] = godaddy_price
+        logger.info(f"Added GoDaddy price: {godaddy_price/1000000:.2f}")
+
+        # Add Porkbun price if available
+        if extension in PORKBUN_PRICING and "error" not in PORKBUN_PRICING:
+            logger.info(f"Found Porkbun pricing for extension .{extension}")
+            porkbun_price = PORKBUN_PRICING.get(extension, {}).get("registration")
+            logger.info(f"Porkbun price for .{extension}: {porkbun_price}")
+
+            if porkbun_price:
+                porkbun_price_converted = (
+                    float(porkbun_price) * 1000000
+                )  # Convert to same format as GoDaddy
+                domain_result["providers"]["porkbun"] = porkbun_price_converted
+                logger.info(
+                    f"Added Porkbun price: {porkbun_price} (converted: {porkbun_price_converted/1000000:.2f})"
                 )
 
-                # Process pricing results
-                pricing_index = 0
-                if not PORKBUN_PRICING:
-                    result = pricing_results[pricing_index]
-                    if not isinstance(result, Exception):
-                        PORKBUN_PRICING = result
-                    pricing_index += 1
-
-                # Only process Dynadot results if we requested them
-                if extension not in DYNADOT_PRICING or "error" in DYNADOT_PRICING:
-                    result = (
-                        pricing_results[pricing_index]
-                        if pricing_index < len(pricing_results)
-                        else None
-                    )
-                    if result and not isinstance(result, Exception):
-                        # If DYNADOT_PRICING is empty, set it to the result
-                        # Otherwise, update the existing cache with the new data
-                        if not DYNADOT_PRICING:
-                            DYNADOT_PRICING = result
-                        else:
-                            DYNADOT_PRICING.update(result)
-                    pricing_index += 1
-
-                # Only process Namesilo results if we requested them
-                if not NAMESILO_PRICING or extension not in NAMESILO_PRICING:
-                    result = (
-                        pricing_results[pricing_index]
-                        if pricing_index < len(pricing_results)
-                        else None
-                    )
-                    if result and not isinstance(result, Exception):
-                        # If NAMESILO_PRICING is empty, set it to the result
-                        # Otherwise, update the existing cache with the new data
-                        if not NAMESILO_PRICING:
-                            NAMESILO_PRICING = result
-                        else:
-                            NAMESILO_PRICING.update(result)
-
-            # Check with Dynadot for this specific domain
-            dynadot_result = await check_dynadot_domain(full_domain)
-
-            # Add provider prices to the result
-            if "providers" not in domain_result:
-                domain_result["providers"] = {}
-
-            # Add GoDaddy price to providers
-            godaddy_price = domain_result.get("price_info", {}).get("purchase", 0)
-            domain_result["providers"]["godaddy"] = godaddy_price
-            logger.info(f"Added GoDaddy price: {godaddy_price/1000000:.2f}")
-
-            # Add Porkbun price if available
-            if extension in PORKBUN_PRICING and "error" not in PORKBUN_PRICING:
-                logger.info(f"Found Porkbun pricing for extension .{extension}")
-                porkbun_price = PORKBUN_PRICING.get(extension, {}).get("registration")
-                logger.info(f"Porkbun price for .{extension}: {porkbun_price}")
-
-                if porkbun_price:
-                    porkbun_price_converted = (
-                        float(porkbun_price) * 1000000
-                    )  # Convert to same format as GoDaddy
-                    domain_result["providers"]["porkbun"] = porkbun_price_converted
-                    logger.info(
-                        f"Added Porkbun price: {porkbun_price} (converted: {porkbun_price_converted/1000000:.2f})"
-                    )
-
-            # Add Dynadot price if available
-            if dynadot_result.get("available", False) and dynadot_result.get("price"):
-                dynadot_price = dynadot_result.get("price")
-                logger.info(f"Found Dynadot price for {full_domain}: {dynadot_price}")
-                domain_result["providers"]["dynadot"] = (
-                    float(dynadot_price) * 1000000
-                )  # Convert to same format as GoDaddy
-                logger.info(f"Added Dynadot price: {dynadot_price}")
-            elif extension in DYNADOT_PRICING and "error" not in DYNADOT_PRICING:
-                dynadot_price = DYNADOT_PRICING.get(extension)
-                if dynadot_price:
-                    logger.info(
-                        f"Using cached Dynadot price for .{extension}: {dynadot_price}"
-                    )
+        # Add Dynadot price - prioritize direct check result, fallback to cached pricing
+        if dynadot_result.get("available", False) and dynadot_result.get("price"):
+            dynadot_price = dynadot_result.get("price")
+            logger.info(f"Found Dynadot price for {full_domain}: {dynadot_price}")
+            domain_result["providers"]["dynadot"] = (
+                float(dynadot_price) * 1000000
+            )  # Convert to same format as GoDaddy
+            logger.info(f"Added Dynadot price from direct check: {dynadot_price}")
+        elif extension in DYNADOT_PRICING and not isinstance(DYNADOT_PRICING.get(extension), dict):
+            dynadot_price = DYNADOT_PRICING.get(extension)
+            logger.info(f"Using cached Dynadot price for .{extension}: {dynadot_price}")
+            if dynadot_price is not None:
+                try:
                     domain_result["providers"]["dynadot"] = (
                         float(dynadot_price) * 1000000
                     )  # Convert to same format as GoDaddy
                     logger.info(f"Added Dynadot price from cache: {dynadot_price}")
+                except (ValueError, TypeError) as e:
+                    logger.error(f"Failed to convert Dynadot price {dynadot_price} to float: {str(e)}")
+            else:
+                logger.warning(f"Dynadot price for .{extension} is None")
 
-            # Add Namesilo price if available
-            if extension in NAMESILO_PRICING and "error" not in NAMESILO_PRICING:
-                logger.info(f"Found Namesilo pricing for extension .{extension}")
-                namesilo_price = NAMESILO_PRICING.get(extension, {}).get("registration")
-                logger.info(f"Namesilo price for .{extension}: {namesilo_price}")
+        # Add Namesilo price if available
+        if extension in NAMESILO_PRICING and "error" not in NAMESILO_PRICING:
+            logger.info(f"Found Namesilo pricing for extension .{extension}")
+            namesilo_price = NAMESILO_PRICING.get(extension, {}).get("registration")
+            logger.info(f"Namesilo price for .{extension}: {namesilo_price}")
 
-                if namesilo_price and namesilo_price != "N/A":
-                    namesilo_price_converted = (
-                        float(namesilo_price) * 1000000
-                    )  # Convert to same format as GoDaddy
-                    domain_result["providers"]["namesilo"] = namesilo_price_converted
-                    logger.info(
-                        f"Added Namesilo price: {namesilo_price} (converted: {namesilo_price_converted/1000000:.2f})"
-                    )
+            if namesilo_price and namesilo_price != "N/A":
+                namesilo_price_converted = (
+                    float(namesilo_price) * 1000000
+                )  # Convert to same format as GoDaddy
+                domain_result["providers"]["namesilo"] = namesilo_price_converted
+                logger.info(
+                    f"Added Namesilo price: {namesilo_price} (converted: {namesilo_price_converted/1000000:.2f})"
+                )
 
-            # Log the full providers object
-            logger.info(f"Final providers object: {domain_result.get('providers', {})}")
+        # Log the full providers object
+        logger.info(f"Final providers object: {domain_result.get('providers', {})}")
 
         # Add to cache
         add_to_cache(full_domain, domain_result)
@@ -331,6 +361,7 @@ async def check_multiple_domains(domains: List[str]) -> Dict[str, Dict]:
             extensions_to_check.add(extension)
     
     logger.info(f"Checking domains with extensions: {extensions_to_check}")
+    logger.debug(f"Current DYNADOT_PRICING state: {DYNADOT_PRICING}")
 
     # Collect results here
     results = {}
@@ -350,196 +381,200 @@ async def check_multiple_domains(domains: List[str]) -> Dict[str, Dict]:
         logger.info("All domains found in cache")
         return results
 
-    # Set up API credentials
-    if not GODADDY_API_KEY or not GODADDY_API_SECRET:
-        logger.error("GoDaddy API credentials not configured")
-        # Return empty results for uncached domains
-        for domain in uncached_domains:
-            results[domain] = {
-                "available": False,
-                "price_info": None,
-                "error": "API credentials not configured",
-            }
-        return results
+    logger.info(f"Checking {len(uncached_domains)} domains not in cache")
 
     try:
+        if not GODADDY_API_KEY or not GODADDY_API_SECRET:
+            logger.error("GoDaddy API credentials not configured")
+            return {
+                domain: {
+                    "available": False,
+                    "price_info": None,
+                    "error": "API credentials not configured",
+                }
+                for domain in uncached_domains
+            }
+
         # Get the shared session
         session = await get_session()
 
-        # Set up headers for API requests
+        # Create headers for API requests
         headers = {
             "Authorization": f"sso-key {GODADDY_API_KEY}:{GODADDY_API_SECRET}",
             "Content-Type": "application/json",
             "Accept": "application/json",
         }
 
-        # Check uncached domains in batches of 500 (GoDaddy's limit)
-        batch_size = 500
+        # All uncached results will be stored here
         uncached_results = {}
 
-        for i in range(0, len(uncached_domains), batch_size):
-            batch = uncached_domains[i : i + batch_size]
-            logger.info(f"Checking batch of {len(batch)} domains with GoDaddy API")
-
-            try:
-                # Make bulk check request
-                url = f"{GODADDY_API_URL}?checkType=FAST"
-                payload = {"domains": batch}
-
-                async with session.post(
-                    url, headers=headers, json=payload, timeout=20
-                ) as response:
-                    if response.status == 200:
-                        # Process successful response
-                        data = await response.json()
-                        # Map domain name to result
-                        domain_results = {}
-                        for item in data["domains"]:
-                            domain = item["domain"].lower()
-                            is_available = item["available"]
-                            price_info = item.get("price", None)
-                            domain_results[domain] = {
-                                "available": is_available,
-                                "price_info": price_info,
-                                "providers": {"godaddy": price_info["purchase"] if price_info else None}
-                                if is_available
-                                else {},
-                            }
-                        uncached_results.update(domain_results)
-                    else:
-                        # Handle failed batch
-                        error_msg = await response.text()
-                        logger.error(
-                            f"GoDaddy API error: {response.status} - {error_msg}"
-                        )
-                        # Check domains individually as fallback
-                        await check_domains_individually(
-                            batch, uncached_results, headers, session
-                        )
-            except asyncio.TimeoutError:
-                logger.error("Timeout when checking batch of domains")
-                # Fallback: check domains individually
-                await check_domains_individually(
-                    batch, uncached_results, headers, session
-                )
-            except Exception as e:
-                logger.error(f"Error checking batch of domains: {str(e)}")
-                # Fallback: check domains individually
-                await check_domains_individually(
-                    batch, uncached_results, headers, session
-                )
-
-        # Once we have GoDaddy results, fetch pricing from other providers for available domains
-        available_domains = [
-            domain
-            for domain, info in uncached_results.items()
-            if info.get("available", False)
-        ]
-
-        if available_domains:
-            logger.info(f"Found {len(available_domains)} available domains")
-
-            # Only fetch pricing data for extensions we need
-            pricing_tasks = []
+        # Ensure we have the pricing data from providers, but only for extensions we need
+        pricing_tasks = []
+        
+        # Check if we need Porkbun pricing
+        if not PORKBUN_PRICING:
+            logger.info(f"Fetching all Porkbun pricing")
+            pricing_tasks.append(get_porkbun_pricing())
             
-            # Check if we need Porkbun pricing
+        # Check if we need Dynadot pricing for specific extensions
+        dynadot_extensions_needed = [ext for ext in extensions_to_check 
+                                 if ext not in DYNADOT_PRICING or "error" in DYNADOT_PRICING]
+        if dynadot_extensions_needed:
+            logger.info(f"Fetching Dynadot pricing only for extensions: {dynadot_extensions_needed}")
+            pricing_tasks.append(get_dynadot_pricing(dynadot_extensions_needed))
+        else:
+            logger.info("Using cached Dynadot pricing")
+            
+        # Check if we need Namesilo pricing for specific extensions
+        namesilo_extensions_needed = [ext for ext in extensions_to_check 
+                                  if not NAMESILO_PRICING or ext not in NAMESILO_PRICING]
+        if namesilo_extensions_needed:
+            logger.info(f"Fetching Namesilo pricing only for extensions: {namesilo_extensions_needed}")
+            pricing_tasks.append(get_namesilo_pricing(namesilo_extensions_needed))
+        else:
+            logger.info("Using cached Namesilo pricing")
+            
+        # Launch pricing fetching in the background
+        pricing_future = asyncio.gather(*pricing_tasks, return_exceptions=True) if pricing_tasks else None
+        
+        # We'll check all domains with GoDaddy and create direct Dynadot check tasks
+        godaddy_tasks = []
+        dynadot_tasks = []
+        domain_to_index = {}
+        
+        for i, domain in enumerate(uncached_domains):
+            # GoDaddy domain check
+            godaddy_task = asyncio.create_task(check_single_domain(domain, headers, session))
+            godaddy_tasks.append(godaddy_task)
+            
+            # Dynadot domain check
+            dynadot_task = asyncio.create_task(check_dynadot_domain(domain))
+            dynadot_tasks.append(dynadot_task)
+            
+            # Map domain to its index for later processing
+            domain_to_index[domain] = i
+            
+        # Wait for all GoDaddy tasks to complete
+        godaddy_results = await asyncio.gather(*godaddy_tasks, return_exceptions=True)
+        
+        # Wait for all Dynadot tasks to complete
+        dynadot_results = await asyncio.gather(*dynadot_tasks, return_exceptions=True)
+        
+        # Wait for pricing data if it was fetched
+        if pricing_future:
+            pricing_results = await pricing_future
+            
+            # Process pricing results
+            pricing_index = 0
+            
+            # Process Porkbun results if needed
             if not PORKBUN_PRICING or any(ext not in PORKBUN_PRICING for ext in extensions_to_check):
-                pricing_tasks.append(get_porkbun_pricing())
-            
-            # Check if we need Dynadot pricing for specific extensions
-            dynadot_extensions_needed = [ext for ext in extensions_to_check 
-                                        if ext not in DYNADOT_PRICING or "error" in DYNADOT_PRICING]
+                result = pricing_results[pricing_index]
+                if not isinstance(result, Exception):
+                    PORKBUN_PRICING = result
+                pricing_index += 1
+
+            # Process Dynadot results if needed
             if dynadot_extensions_needed:
-                logger.info(f"Fetching Dynadot pricing only for extensions: {dynadot_extensions_needed}")
-                pricing_tasks.append(get_dynadot_pricing(dynadot_extensions_needed))
-            else:
-                logger.info(f"Using cached Dynadot pricing for all required extensions")
-            
-            # Check if we need Namesilo pricing for specific extensions
-            namesilo_extensions_needed = [ext for ext in extensions_to_check 
-                                         if not NAMESILO_PRICING or ext not in NAMESILO_PRICING]
+                result = pricing_results[pricing_index]
+                if result and not isinstance(result, Exception):
+                    # Update DYNADOT_PRICING with the new results
+                    if not DYNADOT_PRICING:
+                        DYNADOT_PRICING = result
+                    else:
+                        DYNADOT_PRICING.update(result)
+                    logger.debug(f"Updated DYNADOT_PRICING after bulk check: {DYNADOT_PRICING}")
+                pricing_index += 1
+
+            # Process Namesilo results if needed
             if namesilo_extensions_needed:
-                logger.info(f"Fetching Namesilo pricing only for extensions: {namesilo_extensions_needed}")
-                pricing_tasks.append(get_namesilo_pricing(namesilo_extensions_needed))
-            else:
-                logger.info(f"Using cached Namesilo pricing for all required extensions")
-
-            # Also check Dynadot directly for available domains - but only for needed extensions
-            available_domains_by_extension = {}
-            for domain in available_domains:
-                if "." in domain:
-                    ext = domain.split(".")[-1]
-                    if ext in dynadot_extensions_needed:
-                        available_domains_by_extension.setdefault(ext, []).append(domain)
+                result = pricing_results[pricing_index]
+                if result and not isinstance(result, Exception):
+                    # Update NAMESILO_PRICING with the new results
+                    if not NAMESILO_PRICING:
+                        NAMESILO_PRICING = result
+                    else:
+                        NAMESILO_PRICING.update(result)
+        
+        # Process domain results and combine with provider data
+        for i, domain in enumerate(uncached_domains):
+            # Process GoDaddy result
+            domain_result = godaddy_results[i]
+            if isinstance(domain_result, Exception):
+                logger.error(f"Error checking domain {domain} with GoDaddy: {str(domain_result)}")
+                domain_result = {
+                    "available": False,
+                    "price_info": None,
+                    "error": str(domain_result),
+                }
             
-            # Flatten the list of domains to check with Dynadot
-            dynadot_domains_to_check = []
-            for domains_list in available_domains_by_extension.values():
-                dynadot_domains_to_check.extend(domains_list)
+            # Process Dynadot result
+            dynadot_result = dynadot_results[i]
+            if isinstance(dynadot_result, Exception):
+                logger.error(f"Error checking domain {domain} with Dynadot: {str(dynadot_result)}")
+                dynadot_result = {
+                    "available": False, 
+                    "price": None,
+                    "error": str(dynadot_result),
+                }
             
-            if dynadot_domains_to_check:
-                logger.info(f"Checking {len(dynadot_domains_to_check)} domains directly with Dynadot API")
-                pricing_tasks.append(check_dynadot_domains(dynadot_domains_to_check))
-
-            # Run all pricing tasks concurrently
-            if pricing_tasks:
-                pricing_results = await asyncio.gather(
-                    *pricing_tasks, return_exceptions=True
-                )
-
-                # Process pricing results
-                pricing_index = 0
-                
-                # Process Porkbun results if needed
-                if not PORKBUN_PRICING or any(ext not in PORKBUN_PRICING for ext in extensions_to_check):
-                    result = pricing_results[pricing_index]
-                    if not isinstance(result, Exception):
-                        PORKBUN_PRICING = result
-                    pricing_index += 1
-
-                # Process Dynadot results if needed
-                if dynadot_extensions_needed:
-                    result = pricing_results[pricing_index]
-                    if result and not isinstance(result, Exception):
-                        # Update DYNADOT_PRICING with the new results
-                        if not DYNADOT_PRICING:
-                            DYNADOT_PRICING = result
+            # Add provider pricing if domain is available
+            if domain_result.get("available", False):
+                # Extract extension from domain
+                parts = domain.split(".")
+                if len(parts) > 1:
+                    extension = parts[-1]
+                    
+                    # Initialize providers dict if not present
+                    if "providers" not in domain_result:
+                        domain_result["providers"] = {}
+                    
+                    # Add GoDaddy price
+                    godaddy_price = domain_result.get("price_info", {}).get("purchase", 0)
+                    domain_result["providers"]["godaddy"] = godaddy_price
+                    
+                    # Add Porkbun price if available
+                    if extension in PORKBUN_PRICING and "error" not in PORKBUN_PRICING:
+                        porkbun_price = PORKBUN_PRICING.get(extension, {}).get("registration")
+                        if porkbun_price:
+                            porkbun_price_converted = float(porkbun_price) * 1000000  # Convert to same format as GoDaddy
+                            domain_result["providers"]["porkbun"] = porkbun_price_converted
+                            logger.info(f"Added Porkbun price for {domain}: ${porkbun_price}")
+                    
+                    # Add Dynadot price - check direct result first then fallback to cached price
+                    if dynadot_result.get("available", False) and dynadot_result.get("price"):
+                        dynadot_price = dynadot_result.get("price")
+                        logger.info(f"Found Dynadot price for {domain}: {dynadot_price}")
+                        domain_result["providers"]["dynadot"] = float(dynadot_price) * 1000000
+                        logger.info(f"Added Dynadot price for {domain}: ${dynadot_price}")
+                    # Otherwise try to get it from cached TLD pricing
+                    elif extension in DYNADOT_PRICING and not isinstance(DYNADOT_PRICING.get(extension), dict):
+                        dynadot_price = DYNADOT_PRICING.get(extension)
+                        if dynadot_price is not None:
+                            try:
+                                price_float = float(dynadot_price)
+                                logger.info(f"Using cached Dynadot price for .{extension}: {price_float}")
+                                domain_result["providers"]["dynadot"] = price_float * 1000000
+                                logger.info(f"Added Dynadot price from cache for {domain}: ${price_float}")
+                            except (ValueError, TypeError) as e:
+                                logger.error(f"Failed to convert cached Dynadot price {dynadot_price} to float: {str(e)}")
                         else:
-                            DYNADOT_PRICING.update(result)
-                    pricing_index += 1
-
-                # Process Namesilo results if needed
-                if namesilo_extensions_needed:
-                    result = pricing_results[pricing_index]
-                    if result and not isinstance(result, Exception):
-                        # Update NAMESILO_PRICING with the new results
-                        if not NAMESILO_PRICING:
-                            NAMESILO_PRICING = result
-                        else:
-                            NAMESILO_PRICING.update(result)
-                    pricing_index += 1
-
-                # Process direct Dynadot domain check results if we performed them
-                if dynadot_domains_to_check:
-                    dynadot_domain_results = pricing_results[pricing_index]
-                    if not isinstance(dynadot_domain_results, Exception):
-                        # Add Dynadot results to the provider data
-                        for domain, dynadot_info in dynadot_domain_results.items():
-                            if domain in uncached_results and uncached_results[domain].get(
-                                "available", False
-                            ):
-                                # Get the current providers dictionary or create new one
-                                providers = uncached_results[domain].get("providers", {})
-                                if dynadot_info.get("available", False) and dynadot_info.get(
-                                    "price"
-                                ):
-                                    # Convert price to match GoDaddy format (in millionths)
-                                    price_float = float(dynadot_info["price"])
-                                    providers["dynadot"] = price_float * 1000000
-                                    logger.info(
-                                        f"Added Dynadot price for {domain}: ${price_float}"
-                                    )
-                                uncached_results[domain]["providers"] = providers
+                            logger.warning(f"Cached Dynadot price for .{extension} is None")
+                    
+                    # Add Namesilo price if available
+                    if extension in NAMESILO_PRICING and "error" not in NAMESILO_PRICING:
+                        namesilo_price = NAMESILO_PRICING.get(extension, {}).get("registration")
+                        if namesilo_price and namesilo_price != "N/A":
+                            namesilo_price_converted = float(namesilo_price) * 1000000
+                            domain_result["providers"]["namesilo"] = namesilo_price_converted
+                            logger.info(f"Added Namesilo price for {domain}: ${namesilo_price}")
+            
+            # Store the result
+            uncached_results[domain] = domain_result
+            
+            # Log final provider data
+            if "providers" in domain_result:
+                logger.debug(f"Final providers for {domain}: {domain_result['providers']}")
 
         # Add all results to the final results dictionary and cache
         for domain, domain_result in uncached_results.items():
@@ -585,8 +620,10 @@ async def check_domains_individually(
     
     logger.info(f"Extensions to check in individual mode: {extensions_to_check}")
 
-    # Ensure we have the pricing data from providers, but only for needed extensions
+    # Fetch all pricing data needed concurrently
     pricing_tasks = []
+    
+    # Check if we need Porkbun pricing
     if not PORKBUN_PRICING:
         pricing_tasks.append(get_porkbun_pricing())
         
@@ -608,10 +645,34 @@ async def check_domains_individually(
     else:
         logger.info("Using cached Namesilo pricing")
 
-    if pricing_tasks:
-        # Run pricing data fetching concurrently
-        pricing_results = await asyncio.gather(*pricing_tasks, return_exceptions=True)
+    # Launch pricing fetching in the background
+    pricing_future = asyncio.gather(*pricing_tasks, return_exceptions=True) if pricing_tasks else None
 
+    # Create a task for each domain check and for Dynadot checks
+    godaddy_tasks = []
+    dynadot_tasks = []
+    domain_to_task_map = {}
+    
+    for domain in domains:
+        # GoDaddy check
+        godaddy_task = asyncio.create_task(check_single_domain(domain, headers, session))
+        godaddy_tasks.append(godaddy_task)
+        domain_to_task_map[domain] = godaddy_task
+        
+        # Dynadot check
+        dynadot_task = asyncio.create_task(check_dynadot_domain(domain))
+        dynadot_tasks.append(dynadot_task)
+    
+    # Wait for all GoDaddy tasks to complete
+    godaddy_results = await asyncio.gather(*godaddy_tasks, return_exceptions=True)
+    
+    # Wait for all Dynadot tasks to complete
+    dynadot_results = await asyncio.gather(*dynadot_tasks, return_exceptions=True)
+    
+    # Wait for pricing data if it was fetched
+    if pricing_future:
+        pricing_results = await pricing_future
+        
         # Process pricing results
         pricing_index = 0
         if not PORKBUN_PRICING:
@@ -646,149 +707,76 @@ async def check_domains_individually(
                     NAMESILO_PRICING = result
                 else:
                     NAMESILO_PRICING.update(result)
-            pricing_index += 1
-
-    # Process domains in smaller batches to avoid overwhelming the API
-    batch_size = 5
-    available_domains = []
+        
+    # Process domain results
     domain_results = {}
-
-    for i in range(0, len(domains), batch_size):
-        batch = domains[i : i + batch_size]
-        tasks = []
-
-        for domain in batch:
-            task = asyncio.create_task(check_single_domain(domain, headers, session))
-            tasks.append((domain, task))
-
-        # Wait for all tasks in the batch to complete
-        for domain, task in tasks:
-            try:
-                domain_result = await task
-
-                # Add provider pricing if domain is available
-                if domain_result.get("available", False):
-                    # Add to available domains list for Dynadot check
-                    available_domains.append(domain)
-
-                    # Extract extension from domain
-                    parts = domain.split(".")
-                    if len(parts) > 1:
-                        extension = parts[-1]
-
-                        # Add provider prices
-                        domain_result["providers"] = {}
-
-                        # Add GoDaddy price
-                        godaddy_price = domain_result.get("price_info", {}).get(
-                            "purchase", 0
-                        )
-                        domain_result["providers"]["godaddy"] = godaddy_price
-
-                # Store the result
-                domain_results[domain] = domain_result
-
-            except Exception as e:
-                logger.error(f"Error checking domain {domain}: {str(e)}")
-                domain_results[domain] = {
-                    "available": False,
-                    "price_info": None,
-                    "error": f"Error: {str(e)}",
-                }
-
-        # Add a small delay between batches to avoid rate limiting
-        if i + batch_size < len(domains):
-            await asyncio.sleep(0.2)
-
-    # Only check available domains with other providers
-    logger.info(f"Found {len(available_domains)} available domains")
-    if available_domains:
-        # Group available domains by extension for Dynadot checks
-        available_domains_by_extension = {}
-        for domain in available_domains:
-            if "." in domain:
-                ext = domain.split(".")[-1]
-                # Only check with Dynadot if we needed pricing for this extension
-                if ext in dynadot_extensions_needed:
-                    available_domains_by_extension.setdefault(ext, []).append(domain)
+    for i, domain in enumerate(domains):
+        # Process GoDaddy result
+        domain_result = godaddy_results[i]
+        if isinstance(domain_result, Exception):
+            logger.error(f"Error checking domain {domain} with GoDaddy: {str(domain_result)}")
+            domain_result = {
+                "available": False,
+                "price_info": None,
+                "error": str(domain_result),
+            }
         
-        # Flatten the list to check with Dynadot
-        dynadot_domains_to_check = []
-        for domains_list in available_domains_by_extension.values():
-            dynadot_domains_to_check.extend(domains_list)
+        # Process Dynadot result
+        dynadot_result = dynadot_results[i]
+        if isinstance(dynadot_result, Exception):
+            logger.error(f"Error checking domain {domain} with Dynadot: {str(dynadot_result)}")
+            dynadot_result = {
+                "available": False,
+                "price": None,
+                "error": str(dynadot_result),
+            }
         
-        dynadot_results = {}
-        if dynadot_domains_to_check:
-            logger.info(f"Checking {len(dynadot_domains_to_check)} domains with Dynadot")
-            # Check domains with Dynadot concurrently
-            dynadot_results = await check_dynadot_domains(dynadot_domains_to_check)
-
-        # Add provider pricing to the results
-        for domain in available_domains:
-            domain_result = domain_results[domain]
+        # Add provider pricing if domain is available
+        if domain_result.get("available", False):
+            # Extract extension from domain
             parts = domain.split(".")
             if len(parts) > 1:
                 extension = parts[-1]
 
+                # Add provider prices
+                domain_result["providers"] = {}
+
+                # Add GoDaddy price
+                godaddy_price = domain_result.get("price_info", {}).get("purchase", 0)
+                domain_result["providers"]["godaddy"] = godaddy_price
+                
                 # Add Porkbun price if available
                 if extension in PORKBUN_PRICING and "error" not in PORKBUN_PRICING:
-                    porkbun_price = PORKBUN_PRICING.get(extension, {}).get(
-                        "registration"
-                    )
+                    porkbun_price = PORKBUN_PRICING.get(extension, {}).get("registration")
                     if porkbun_price:
-                        domain_result["providers"]["porkbun"] = (
-                            float(porkbun_price) * 1000000
-                        )  # Convert to same format as GoDaddy
-                        logger.info(
-                            f"Added Porkbun pricing for {domain}: ${porkbun_price}"
-                        )
-
+                        domain_result["providers"]["porkbun"] = float(porkbun_price) * 1000000
+                        logger.info(f"Added Porkbun pricing for {domain}: ${porkbun_price}")
+                
                 # Add Dynadot price if available
-                # First try to get it from direct domain check results
-                if domain in dynadot_results:
-                    dynadot_domain_info = dynadot_results.get(domain, {})
-                    if dynadot_domain_info.get(
-                        "available", False
-                    ) and dynadot_domain_info.get("price"):
-                        dynadot_price = dynadot_domain_info.get("price")
-                        logger.info(f"Found Dynadot price for {domain}: {dynadot_price}")
-                        domain_result["providers"]["dynadot"] = (
-                            float(dynadot_price) * 1000000
-                        )  # Convert to same format as GoDaddy
-                        logger.info(f"Added Dynadot pricing for {domain}: ${dynadot_price}")
-                # Otherwise try to get it from cached TLD pricing
+                if dynadot_result.get("available", False) and dynadot_result.get("price"):
+                    dynadot_price = dynadot_result.get("price")
+                    domain_result["providers"]["dynadot"] = float(dynadot_price) * 1000000
+                    logger.info(f"Added Dynadot pricing for {domain}: ${dynadot_price}")
                 elif extension in DYNADOT_PRICING and "error" not in DYNADOT_PRICING:
                     dynadot_price = DYNADOT_PRICING.get(extension)
                     if dynadot_price:
-                        logger.info(
-                            f"Using cached Dynadot price for .{extension}: {dynadot_price}"
-                        )
-                        domain_result["providers"]["dynadot"] = (
-                            float(dynadot_price) * 1000000
-                        )  # Convert to same format as GoDaddy
-                        logger.info(
-                            f"Added Dynadot pricing from cache for {domain}: ${dynadot_price}"
-                        )
-
+                        domain_result["providers"]["dynadot"] = float(dynadot_price) * 1000000
+                        logger.info(f"Added Dynadot pricing from cache for {domain}: ${dynadot_price}")
+                
                 # Add Namesilo price if available
                 if extension in NAMESILO_PRICING and "error" not in NAMESILO_PRICING:
-                    namesilo_price = NAMESILO_PRICING.get(extension, {}).get(
-                        "registration"
-                    )
+                    namesilo_price = NAMESILO_PRICING.get(extension, {}).get("registration")
                     if namesilo_price and namesilo_price != "N/A":
-                        logger.info(
-                            f"Using Namesilo price for .{extension}: {namesilo_price}"
-                        )
-                        domain_result["providers"]["namesilo"] = (
-                            float(namesilo_price) * 1000000
-                        )  # Convert to same format as GoDaddy
-                        logger.info(
-                            f"Added Namesilo pricing for {domain}: ${namesilo_price}"
-                        )
-
-    # Add all results to the final results dictionary and cache
-    for domain, domain_result in domain_results.items():
+                        domain_result["providers"]["namesilo"] = float(namesilo_price) * 1000000
+                        logger.info(f"Added Namesilo pricing for {domain}: ${namesilo_price}")
+        
+        # Store the result
+        domain_results[domain] = domain_result
+        
+        # Add to the results dictionary
         results[domain] = domain_result
+        
+        # Add to cache
         add_to_cache(domain, domain_result)
 
 
