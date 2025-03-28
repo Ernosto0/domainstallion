@@ -2131,4 +2131,48 @@ async function checkMoreExtensions(event, brandName) {
     }
 }
 
+// Cookie Consent Banner
+document.addEventListener('DOMContentLoaded', function() {
+    console.log('Cookie consent script loaded');
+    
+    // Create a function to show the banner
+    function showCookieBanner() {
+        const cookieBanner = document.getElementById('cookie-consent-banner');
+        if (cookieBanner) {
+            console.log('Cookie banner found in DOM');
+            cookieBanner.style.display = 'block'; // Ensure it's visible first
+            setTimeout(function() {
+                cookieBanner.classList.add('show');
+                console.log('Added show class to cookie banner');
+            }, 100);
+        } else {
+            console.error('Cookie banner element not found in DOM');
+        }
+    }
+    
+    // Check if user already accepted cookies
+    if (!localStorage.getItem('cookieConsent')) {
+        console.log('No cookie consent found in localStorage, showing banner');
+        // Show banner immediately, no delay
+        showCookieBanner();
+    } else {
+        console.log('Cookie consent already accepted');
+    }
 
+    // Add event listener to the accept button
+    const acceptButton = document.getElementById('cookie-accept');
+    if (acceptButton) {
+        console.log('Cookie accept button found');
+        acceptButton.addEventListener('click', function() {
+            console.log('Cookie accept button clicked');
+            localStorage.setItem('cookieConsent', 'accepted');
+            const cookieBanner = document.getElementById('cookie-consent-banner');
+            cookieBanner.classList.remove('show');
+            setTimeout(function() {
+                cookieBanner.style.display = 'none';
+            }, 500);
+        });
+    } else {
+        console.error('Cookie accept button not found');
+    }
+}); 
