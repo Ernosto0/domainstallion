@@ -2110,6 +2110,41 @@ async function checkMoreExtensions(event, brandName) {
             remainingContainer.appendChild(domainCard);
         }
         
+        // Add toggle button if it doesn't exist
+        const existingToggleButton = domainsContainer.querySelector('.toggle-domains');
+        if (!existingToggleButton) {
+            // Create toggle button
+            const toggleButton = document.createElement('button');
+            toggleButton.className = 'btn btn-sm btn-outline-secondary w-100 mt-2 toggle-domains';
+            toggleButton.innerHTML = `
+                <span class="more-text" style="display: none;">Show More Extensions (${Object.keys(data).length})</span>
+                <span class="less-text">Hide Extensions</span>
+                <i class="bi bi-chevron-down" style="transform: rotate(180deg)"></i>
+            `;
+            
+            toggleButton.addEventListener('click', function() {
+                const remainingDomains = domainsContainer.querySelector('.remaining-domains');
+                const moreText = this.querySelector('.more-text');
+                const lessText = this.querySelector('.less-text');
+                const icon = this.querySelector('i');
+                
+                if (remainingDomains.style.display === 'none') {
+                    remainingDomains.style.display = 'block';
+                    moreText.style.display = 'none';
+                    lessText.style.display = 'inline';
+                    icon.style.transform = 'rotate(180deg)';
+                } else {
+                    remainingDomains.style.display = 'none';
+                    moreText.style.display = 'inline';
+                    lessText.style.display = 'none';
+                    icon.style.transform = 'rotate(0)';
+                }
+            });
+            
+            // Insert toggle button before the original "Check More Extensions" button
+            domainsContainer.insertBefore(toggleButton, button);
+        }
+        
         // Reset the button but keep it hidden since we've shown the results
         button.innerHTML = originalButtonText;
         button.disabled = false;

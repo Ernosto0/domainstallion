@@ -937,8 +937,39 @@ main {
     color: var(--secondary-color);
 }
 
+/* Mobile-friendly form classes */
+.mobile-friendly-form {
+    width: 100%;
+    max-width: 800px;
+    margin: 0 auto;
+}
+
+.mobile-responsive-input {
+    display: flex;
+    flex-direction: row;
+    width: 100%;
+    box-shadow: var(--box-shadow);
+    border-radius: var(--border-radius);
+    overflow: hidden;
+    margin-bottom: 1.5rem;
+}
+
 /* Responsive adjustments */
 @media (max-width: 768px) {
+    main {
+        padding-top: 1rem;
+        padding-bottom: 2rem;
+    }
+    
+    .navbar-brand {
+        font-size: 1.3rem;
+    }
+    
+    .navbar .btn {
+        padding: 0.4rem 1rem;
+        font-size: 0.9rem;
+    }
+    
     .brand-card {
         padding: 1.25rem;
     }
@@ -977,6 +1008,126 @@ main {
     .favorite-btn {
         align-self: center;
         margin-top: 8px;
+    }
+    
+    /* Mobile improvements for search form */
+    .search-container h1 {
+        font-size: 2rem;
+        margin-bottom: 1rem;
+    }
+    
+    .search-container p.lead {
+        font-size: 1rem;
+        margin-bottom: 1.5rem;
+    }
+    
+    /* Mobile-friendly input group */
+    .mobile-responsive-input {
+        flex-direction: column;
+        box-shadow: none;
+    }
+    
+    .input-group, .mobile-responsive-input {
+        flex-direction: column;
+        box-shadow: none;
+    }
+    
+    .input-group .form-control, .mobile-responsive-input .form-control {
+        border-radius: var(--border-radius);
+        margin-bottom: 0.75rem;
+        box-shadow: var(--box-shadow);
+        font-size: 1rem;
+        padding: 1rem;
+        height: 50px; /* Ensure consistent height */
+        width: 100%; /* Full width on mobile */
+    }
+    
+    .input-group .btn, .mobile-responsive-input .btn {
+        border-radius: var(--border-radius);
+        padding: 0.75rem 1rem;
+        width: 100%;
+        box-shadow: var(--box-shadow);
+        height: 50px; /* Match height with input */
+    }
+    
+    #brandForm {
+        padding: 0 0.5rem;
+    }
+    
+    /* Better card spacing on mobile */
+    .results-container, .favorites-container {
+        padding: 0 0.5rem;
+    }
+    
+    /* Improve accordion display on mobile */
+    .accordion-button {
+        padding: 1rem;
+        font-size: 0.95rem;
+    }
+}
+
+/* Additional mobile optimizations for smaller screens */
+@media (max-width: 576px) {
+    .container {
+        padding-left: 1rem;
+        padding-right: 1rem;
+    }
+    
+    .search-container {
+        margin-bottom: 2.5rem;
+    }
+    
+    .search-container h1 {
+        font-size: 1.75rem;
+    }
+    
+    .search-container p.lead {
+        font-size: 0.95rem;
+        margin-bottom: 1.25rem;
+    }
+    
+    #advancedOptionsToggle {
+        font-size: 0.9rem;
+        padding: 8px 12px;
+    }
+    
+    .input-group .form-control {
+        padding: 0.75rem 1rem;
+    }
+    
+    .input-group .btn {
+        padding: 0.75rem 0.5rem;
+        font-size: 0.9rem;
+    }
+    
+    /* Navbar improvements for very small screens */
+    .navbar {
+        padding: 0.75rem 0;
+    }
+    
+    .navbar-brand {
+        font-size: 1.2rem;
+    }
+    
+    /* Better form display on small screens */
+    #advancedOptions {
+        padding: 1rem !important;
+    }
+    
+    .form-label {
+        font-size: 0.9rem;
+        margin-bottom: 0.3rem;
+    }
+    
+    .form-control, .form-select {
+        font-size: 0.9rem;
+        padding: 0.6rem 0.8rem;
+    }
+    
+    .mobile-responsive-input .form-control {
+        padding: 0.75rem 1rem;
+        font-size: 0.95rem;
+        height: 50px; /* Make text input taller on mobile */
     }
 }
 
@@ -1440,5 +1591,107 @@ main {
 
     .cookie-buttons .btn {
         flex-grow: 1;
+    }
+}
+
+/* Fix for input field sizing on mobile */
+@media (max-width: 768px) {
+    .mobile-responsive-input .form-control, .input-group .form-control {
+        min-height: 50px;
+        line-height: 1.3;
+        padding-top: 0.75rem;
+        padding-bottom: 0.75rem;
+        font-size: 16px; /* Native font size for mobile to prevent zoom */
+        width: 100% !important;
+    }
+    
+    .search-container input[type="text"] {
+        width: 100% !important;
+        flex: none !important;
+    }
+    
+    /* Ensure the input group doesn't collapse */
+    .input-group {
+        display: flex;
+        width: 100%;
+    }
+    
+    /* Add more specific selector for the input field */
+    #keywordInput {
+        width: 100% !important;
+        height: auto !important;
+        min-height: 50px;
+    }
+}
+
+/* Mobile-specific styles for the text input and button */
+.mobile-text-input {
+    width: 100%;
+    min-height: 50px;
+    font-size: 16px; /* Prevents auto zoom on iOS */
+}
+
+.mobile-submit-btn {
+    width: auto;
+    min-height: 50px;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+    /* Mobile styles for text input */
+    .mobile-text-input {
+        width: 100% !important;
+        flex: 1 1 auto !important;
+        min-height: 50px;
+        padding: 0.75rem 1rem;
+        line-height: 1.5;
+        box-sizing: border-box;
+    }
+    
+    /* Mobile styles for submit button */
+    .mobile-submit-btn {
+        width: 100% !important;
+        margin-top: 0.5rem;
+        min-height: 50px;
+    }
+}
+
+/* Fix for input field sizing on mobile */
+@media (max-width: 768px) {
+    /* More specific selector for the input field */
+    #keywordInput.mobile-text-input {
+        min-height: 50px !important;
+        height: auto !important;
+        box-sizing: border-box;
+        display: block;
+        width: 100% !important;
+    }
+}
+
+/* Override Bootstrap's default styles for input groups on mobile */
+@media (max-width: 768px) {
+    .input-group {
+        flex-wrap: wrap !important;
+    }
+    
+    .input-group > .form-control {
+        width: 100% !important;
+        flex: 1 1 100% !important;
+    }
+    
+    .mobile-responsive-input {
+        width: 100%;
+        display: block;
+    }
+    
+    /* Fix for the text input field */
+    .mobile-text-input {
+        flex: none !important;
+        width: 100% !important;
+        display: block !important;
+        margin-bottom: 0.75rem;
+        border-radius: var(--border-radius) !important;
+        position: relative !important;
+        z-index: 1;
     }
 }
