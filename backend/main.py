@@ -13,8 +13,41 @@ import logging
 import asyncio
 import time
 
-# Enable insecure transport for development
-os.environ["OAUTHLIB_INSECURE_TRANSPORT"] = "1"
+# Environment settings
+ENV = os.getenv("ENVIRONMENT", "development")
+IS_PRODUCTION = ENV == "production"
+
+# Configure logging
+logging_level = logging.INFO if IS_PRODUCTION else logging.DEBUG
+logging.basicConfig(
+    level=logging_level,
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+)
+
+# Configure rate limits based on environment
+# Higher limits in production to handle legitimate traffic
+if IS_PRODUCTION:
+    RATE_LIMIT_TOKEN = {"calls": 10, "period": 300}  # 10 requests per 5 minutes
+    RATE_LIMIT_API = {"calls": 40, "period": 60}     # 40 requests per minute
+    RATE_LIMIT_DOMAIN = {"calls": 200, "period": 3600}  # 200 requests per hour 
+    RATE_LIMIT_SOCIAL = {"calls": 40, "period": 3600}   # 40 requests per hour
+    RATE_LIMIT_USER = {"calls": 2000, "period": 3600}   # 2000 requests per hour, per user
+    RATE_LIMIT_EXTENSIONS = {"calls": 60, "period": 3600}  # 60 requests per hour
+else:
+    # Development limits
+    RATE_LIMIT_TOKEN = {"calls": 5, "period": 300}       # 5 requests per 5 minutes
+    RATE_LIMIT_API = {"calls": 20, "period": 60}         # 20 requests per minute
+    RATE_LIMIT_DOMAIN = {"calls": 100, "period": 3600}   # 100 requests per hour
+    RATE_LIMIT_SOCIAL = {"calls": 20, "period": 3600}    # 20 requests per hour
+    RATE_LIMIT_USER = {"calls": 1000, "period": 3600}    # 1000 requests per hour, per user
+    RATE_LIMIT_EXTENSIONS = {"calls": 30, "period": 3600}  # 30 requests per hour
+
+# Only enable insecure transport in development
+if not IS_PRODUCTION:
+    os.environ["OAUTHLIB_INSECURE_TRANSPORT"] = "1"
+    logging.warning("Insecure OAuth transport enabled for development")
+else:
+    logging.info("Running in production mode")
 
 from .database import engine, get_db
 from .models import (
@@ -57,7 +90,7 @@ app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 # Configure CORS
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=["*"] if not IS_PRODUCTION else ["https://yourdomain.com"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -70,28 +103,43 @@ app.mount("/static", StaticFiles(directory="backend/static"), name="static")
 templates = Jinja2Templates(directory="backend/templates")
 
 
-# Add debug middleware
-@app.middleware("http")  # Change to https when deploy
-async def debug_middleware(request: Request, call_next):
-    print(f"Incoming request: {request.method} {request.url.path}")
+# Add debug middleware in development mode only
+if not IS_PRODUCTION:
+    @app.middleware("http")
+    async def debug_middleware(request: Request, call_next):
+        print(f"Incoming request: {request.method} {request.url.path}")
 
-    # Check for auth header in request
-    auth_header = request.headers.get("Authorization")
-    print(f"Headers: {request.headers}")
+        # Check for auth header in request
+        auth_header = request.headers.get("Authorization")
+        print(f"Headers: {request.headers}")
 
-    if auth_header:
-        print(f"Auth header found: {auth_header}")
-    else:
-        print("No auth header found")
-        # Only redirect if it's a browser request (not an API call)
-        if request.url.path == "/favorites" and request.method == "GET":
+        if auth_header:
+            print(f"Auth header found: {auth_header}")
+        else:
+            print("No auth header found")
+            # Only redirect if it's a browser request (not an API call)
+            if request.url.path == "/favorites" and request.method == "GET":
+                accepts = request.headers.get("accept", "")
+                if "text/html" in accepts.lower():
+                    return RedirectResponse(url="/", status_code=302)
+
+        response = await call_next(request)
+        print(f"Response status: {response.status_code}")
+        return response
+else:
+    # Simpler middleware for production that just handles redirects
+    @app.middleware("http")
+    async def production_middleware(request: Request, call_next):
+        # Only redirect if it's a browser request to /favorites without auth
+        if (request.url.path == "/favorites" and 
+            request.method == "GET" and 
+            not request.headers.get("Authorization")):
             accepts = request.headers.get("accept", "")
             if "text/html" in accepts.lower():
                 return RedirectResponse(url="/", status_code=302)
-
-    response = await call_next(request)
-    print(f"Response status: {response.status_code}")
-    return response
+        
+        response = await call_next(request)
+        return response
 
 
 # Include Google OAuth routes at the root level
@@ -181,7 +229,7 @@ class BrandResponse(BaseModel):
 
 # Authentication endpoints
 @app.post("/token", response_model=Token)
-@rate_limit(calls=5, period=300)
+@rate_limit(calls=RATE_LIMIT_TOKEN["calls"], period=RATE_LIMIT_TOKEN["period"])
 async def login(
     request: Request,
     form_data: OAuth2PasswordRequestForm = Depends(),
@@ -596,14 +644,14 @@ async def terms_of_service(request: Request):
 
 # Example of applying rate limits to endpoints
 @app.post("/generate-domain")
-@rate_limit(calls=20, period=60)  # Strict rate limit: 20 requests per minute
+@rate_limit(calls=RATE_LIMIT_API["calls"], period=RATE_LIMIT_API["period"])  # API-intensive endpoint
 async def generate_domain(request: Request):
     # Your existing code here
     pass
 
 
 @app.get("/check-availability/{domain}")
-@rate_limit(calls=100, period=3600)  # Default rate limit: 100 requests per hour
+@rate_limit(calls=RATE_LIMIT_DOMAIN["calls"], period=RATE_LIMIT_DOMAIN["period"])  # Domain checking endpoint
 async def check_availability(request: Request, domain: str):
     # Your existing code here
     pass
@@ -611,8 +659,10 @@ async def check_availability(request: Request, domain: str):
 
 @app.get("/watchlist")
 @rate_limit(
-    calls=1000, period=3600, user_specific=True
-)  # Lenient rate limit: 1000 requests per hour, per user
+    calls=RATE_LIMIT_USER["calls"], 
+    period=RATE_LIMIT_USER["period"], 
+    user_specific=True
+)  # User-specific rate limit
 async def get_watchlist(
     request: Request, current_user: User = Depends(get_current_user)
 ):
@@ -621,8 +671,9 @@ async def get_watchlist(
 
 @app.get("/check-social-media/{username}")
 @rate_limit(
-    calls=20, period=3600
-)  # 20 requests per hour due to potential rate limiting from social platforms
+    calls=RATE_LIMIT_SOCIAL["calls"], 
+    period=RATE_LIMIT_SOCIAL["period"]
+)  # Social media checking endpoint
 async def check_social_media_endpoint(request: Request, username: str):
     try:
         result = await check_social_media(username)
@@ -633,7 +684,7 @@ async def check_social_media_endpoint(request: Request, username: str):
 
 
 @app.get("/api/check-more-extensions/{domain_name}")
-@rate_limit(calls=30, period=3600)  # 30 requests per hour
+@rate_limit(calls=RATE_LIMIT_EXTENSIONS["calls"], period=RATE_LIMIT_EXTENSIONS["period"])  # Extensions checking endpoint
 async def check_more_extensions_endpoint(
     request: Request, 
     domain_name: str, 
