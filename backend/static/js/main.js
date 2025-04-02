@@ -193,6 +193,11 @@ document.addEventListener('DOMContentLoaded', function() {
                 selectedExtensions.push(checkbox.getAttribute('data-ext'));
             });
             
+            // Ensure .com is always included
+            if (!selectedExtensions.includes('com')) {
+                selectedExtensions.push('com');
+            }
+            
             // Validate at least one extension is selected
             if (selectedExtensions.length === 0) {
                 showToast('Please select at least one domain extension', 'error');

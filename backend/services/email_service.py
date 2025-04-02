@@ -85,7 +85,9 @@ async def send_domain_availability_email(
                     <li><strong>Renewal Price:</strong> ${renewal_price:.2f}</li>
                 </ul>
             </div>
-            
+            <a href="https://www.godaddy.com/domainsearch/find?domainToCheck={{ domain_name }}"
+                                                   target="_blank" 
+                                                   class="btn btn-sm btn-success flex-grow-1">Register Now</a>
             <p>You can register this domain now before someone else does!</p>
             
             <p>Best regards,<br>
