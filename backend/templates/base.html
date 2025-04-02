@@ -9,7 +9,7 @@
     <!-- Font Awesome Icons -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <!-- Custom CSS -->
-    <link href="{{ request.scheme }}://{{ request.get_host }}{{ url_for('static', filename='css/modern-style.css') }}" rel="stylesheet">
+    <link href="{{ url_for('static', path='css/modern-style.css') }}" rel="stylesheet">
     <style>
         /* Override cookie banner styles for immediate use */
         #cookie-consent-banner {
