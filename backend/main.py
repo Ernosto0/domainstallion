@@ -66,7 +66,6 @@ from .auth import (
 )
 from .google_auth import router as google_auth_router
 from backend.services.brand_generator import BrandGenerator
-from backend.services.trademark_checker import check_trademark
 from backend.services.social_media_checker import check_social_media
 from backend.schemas import WatchlistItemCreate, WatchlistItem
 from .tasks import check_watchlist_domains
