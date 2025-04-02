@@ -19,7 +19,9 @@ import time
 app = FastAPI()
 
 # Mount static files
-app.mount("/static", StaticFiles(directory="static"), name="static")
+static_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'static')
+
+app.mount("/static", StaticFiles(directory=static_dir), name="static")
 
 # Environment settings
 ENV = os.getenv("ENVIRONMENT", "development")
