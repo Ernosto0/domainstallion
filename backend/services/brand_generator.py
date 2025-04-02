@@ -1,4 +1,5 @@
 from openai import OpenAI
+import openai
 import whois
 import requests
 import aiohttp
@@ -48,7 +49,7 @@ if not api_key:
     raise ValueError("OPENAI_API_KEY not found in environment variables")
 
 # Create the client with minimal configuration
-client = OpenAI(api_key=api_key)
+openai.api_key = api_key
 
 
 # Custom exceptions
