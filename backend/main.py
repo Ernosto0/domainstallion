@@ -14,14 +14,12 @@ import asyncio
 import time
 
 
+
+
 app = FastAPI()
 
-# Define the correct static path
-static_path = os.path.join(os.path.dirname(__file__), "static")
-
-# Mount the static directory
-app.mount("/static", StaticFiles(directory=static_path), name="static")
-
+# Mount static files
+app.mount("/static", StaticFiles(directory="backend/static"), name="static")
 
 # Environment settings
 ENV = os.getenv("ENVIRONMENT", "development")
