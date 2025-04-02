@@ -24,3 +24,4 @@ nltk==3.8.1
 starlette==0.36.3
 python-multipart
 mailersend
+slowapi
