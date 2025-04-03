@@ -32,14 +32,14 @@ api_key = os.getenv("OPENAI_API_KEY")
 
 # Common domain extensions to check
 DOMAIN_EXTENSIONS = [
-    "com",  # Most common, international
-    "net",  # Network/tech related
-    "org",  # Organizations
-    "io",  # Tech startups
-    "ai",  # AI/Tech companies
-    "app",  # Applications
-    "dev",  # Developer focused
-    "tech",  # Technology focused
+    "com",  
+    "net", 
+    "org", 
+    "io",  
+    "ai",  
+    "app",  
+    "dev",  
+    "tech",  
 ]
 
 # Chunk size for concurrent API calls

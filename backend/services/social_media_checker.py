@@ -7,6 +7,7 @@ from typing import Dict, Optional, List
 logger = logging.getLogger(__name__)
 
 # Social media platforms with profile URLs and unique text to detect username availability
+
 SOCIAL_MEDIA_PLATFORMS = {
     "Twitter": {
         "url": "https://lightbrd.com/{}",
@@ -36,7 +37,7 @@ class SocialMediaCheckError(Exception):
 
 
 async def check_single_platform(session, platform, data, username):
-    """Asynchronously checks username availability on a single platform."""
+    """checks username availability on a single platform."""
     url = data["url"].format(username)
     headers = {
         "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 Safari/537.36",

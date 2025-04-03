@@ -7,8 +7,7 @@
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.8.1/font/bootstrap-icons.css" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/nouislider@14.6.3/distribute/nouislider.min.css" rel="stylesheet">
-    <link href="https://domain-creator-production.up.railway.app/static/css/modern-style.css" rel="stylesheet">
-
+    <link href="{{ url_for('static', path='css/modern-style.css') }}" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
 </head>
 <body>
@@ -65,10 +64,15 @@
                     <button class="btn btn-primary mobile-submit-btn" type="submit"><i class="bi bi-search"></i> <span class="btn-text">Generate Names</span></button>
                 </div>
 
-                <div class="text-center mb-3">
+                <div class="text-center mb-3 d-flex justify-content-center align-items-center flex-wrap gap-3">
                     <button type="button" class="btn btn-link text-decoration-none" id="advancedOptionsToggle">
                         <i class="bi bi-sliders"></i> Advanced Options
                     </button>
+                    <div class="domain-counter-container">
+                        <i class="bi bi-graph-up me-1"></i>
+                        <span class="domain-counter-label">Domains generated: </span>
+                        <span id="domainCounter" class="domain-counter-value">0</span>
+                    </div>
                 </div>
 
                 <div id="advancedOptions" class="card p-4 mb-3" style="display: none;">
@@ -436,7 +440,6 @@
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/nouislider@14.6.3/distribute/nouislider.min.js"></script>
-    <script src="https://domain-creator-production.up.railway.app/static/js/main.js"></script>
-
+    <script src="{{ url_for('static', path='/js/main.js') }}"></script>
 </body>
 </html> 

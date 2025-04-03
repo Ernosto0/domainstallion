@@ -85,3 +85,12 @@ class AlertHistory(Base):
     delivered = Column(Boolean, default=False)
 
     watchlist_item = relationship("WatchlistItem", back_populates="alerts")
+
+# Stats counter for generated domains
+class StatsCounter(Base):
+    __tablename__ = "stats_counters"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    counter_name = Column(String, unique=True, index=True)
+    counter_value = Column(Integer, default=0)
+    last_updated = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)

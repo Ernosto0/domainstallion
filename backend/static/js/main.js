@@ -119,6 +119,42 @@ document.addEventListener('DOMContentLoaded', function() {
     const favoritesContainer = document.querySelector('.favorites-container');
     const searchContainer = document.querySelector('.search-container');
     const viewFavoritesBtn = document.getElementById('viewFavorites');
+    const domainCounter = document.getElementById('domainCounter');
+
+    // Fetch the total domains count on page load
+    fetchDomainCounter();
+
+    // Function to fetch and update the domain counter
+    async function fetchDomainCounter() {
+        try {
+            const response = await fetch('/api/stats/domains-generated');
+            if (response.ok) {
+                const data = await response.json();
+                updateDomainCounter(data.total_domains_generated);
+            } else {
+                console.error('Failed to fetch domain counter');
+            }
+        } catch (error) {
+            console.error('Error fetching domain counter:', error);
+        }
+    }
+
+    // Function to update the domain counter with animation
+    function updateDomainCounter(value) {
+        if (domainCounter) {
+            // Remove the animation class first (if it exists)
+            domainCounter.classList.remove('animate');
+            
+            // Update the value
+            domainCounter.textContent = value.toLocaleString();
+            
+            // Force a reflow to ensure the animation runs
+            void domainCounter.offsetWidth;
+            
+            // Add the animation class
+            domainCounter.classList.add('animate');
+        }
+    }
 
     // Advanced options toggle
     const advancedOptionsToggle = document.getElementById('advancedOptionsToggle');
@@ -358,7 +394,7 @@ document.addEventListener('DOMContentLoaded', function() {
                                                    class="btn btn-sm btn-outline-primary register-domain-btn flex-grow-1"
                                                    data-domain="${brand.name}.com"
                                                    data-provider="${defaultProvider.id}">
-                                                    <img src="/static/css/images/${defaultProvider.id}.ico" class="provider-icon" width="14" height="14" alt="${defaultProvider.name}"> Register Domain
+                                                    <img src="/static/css/images/${defaultProvider.id}.ico" class="provider-icon" width="18" height="18" alt="${defaultProvider.name}"> Register Domain
                                                 </a>`;
                                             })()}
                                             <button type="button" 
@@ -547,6 +583,8 @@ document.addEventListener('DOMContentLoaded', function() {
                     resultsContainer.scrollIntoView({ behavior: 'smooth', block: 'start' });
                 }
                 
+                // Fetch updated domain counter
+                fetchDomainCounter();
             } catch (error) {
                 console.error('Error:', error);
                 
@@ -1730,8 +1768,8 @@ function updateRegisterButtonIcon(button, provider) {
         // If no icon exists, create a new one
         const newIcon = document.createElement('img');
         newIcon.className = 'provider-icon';
-        newIcon.width = 14;
-        newIcon.height = 14;
+        newIcon.width = 18;
+        newIcon.height = 18;
         newIcon.src = iconPath;
         newIcon.alt = provider.charAt(0).toUpperCase() + provider.slice(1);
         
