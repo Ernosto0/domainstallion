@@ -111,6 +111,21 @@ window.fetch = function(url, options = {}) {
 
 // Wait for the DOM to be fully loaded
 document.addEventListener('DOMContentLoaded', function() {
+    // Initialize global variable to store brand data
+    window.currentBrandData = [];
+    
+    // Add event listener for the download CSV button
+    const downloadCsvBtn = document.getElementById('downloadCsvBtn');
+    if (downloadCsvBtn) {
+        downloadCsvBtn.addEventListener('click', exportDomainsToCSV);
+    }
+    
+    // Add event listener for the favorites download CSV button
+    const downloadFavoritesCsvBtn = document.getElementById('downloadFavoritesCsvBtn');
+    if (downloadFavoritesCsvBtn) {
+        downloadFavoritesCsvBtn.addEventListener('click', exportFavoritesToCSV);
+    }
+    
     // Common elements
     const form = document.getElementById('brandForm');
     const loading = document.getElementById('loading');
@@ -217,6 +232,12 @@ document.addEventListener('DOMContentLoaded', function() {
                 advancedOptions.classList.remove('fade-in');
             }
             
+            // Hide download button at the start of a new search
+            const downloadCsvBtn = document.getElementById('downloadCsvBtn');
+            if (downloadCsvBtn) {
+                downloadCsvBtn.style.display = 'none';
+            }
+            
             const keywords = document.getElementById('keywordInput').value.trim();
             const style = document.getElementById('styleSelect').value;
             const [minLength, maxLength] = lengthSlider.noUiSlider.get();
@@ -311,11 +332,20 @@ document.addEventListener('DOMContentLoaded', function() {
 
                 const data = await response.json();
                 console.log('Raw API Response:', JSON.stringify(data, null, 2));
+                
+                // Store the data globally for CSV export
+                window.currentBrandData = data;
 
                 // Remove the additional loading indicator if it exists
                 const moreLoading = document.getElementById('moreLoading');
                 if (moreLoading) {
                     moreLoading.remove();
+                }
+                
+                // Show download button only if we have results
+                const downloadCsvBtn = document.getElementById('downloadCsvBtn');
+                if (downloadCsvBtn) {
+                    downloadCsvBtn.style.display = data.length > 0 ? 'flex' : 'none';
                 }
                 
                 // Process each brand
@@ -2254,3 +2284,179 @@ document.addEventListener('DOMContentLoaded', function() {
         console.error('Cookie accept button not found');
     }
 }); 
+
+// Function to export domains to CSV file
+function exportDomainsToCSV() {
+    // Check if we have any results
+    const resultsContainer = document.getElementById('results');
+    if (!resultsContainer || !resultsContainer.children.length) {
+        showToast('No domains to export', 'warning');
+        return;
+    }
+
+    // Get the brand data from our global variable
+    if (!window.currentBrandData || !window.currentBrandData.length) {
+        showToast('No domain data available', 'warning');
+        return;
+    }
+
+    // CSV Header
+    let csvContent = 'Domain Name,Extension,Available,Price,GoDaddy Price,Porkbun Price,Dynadot Price,Namesilo Price,Total Score,Length Score,Dictionary Score,Pronounceability Score,Repetition Score,TLD Score,GoDaddy URL,Porkbun URL,Dynadot URL,Namesilo URL\n';
+
+    // Add rows for each domain
+    window.currentBrandData.forEach(brand => {
+        const { name, domains } = brand;
+        
+        // Add each domain extension as a separate row
+        Object.entries(domains).forEach(([ext, domainInfo]) => {
+            const domain = `${name}.${ext}`;
+            const available = domainInfo.available ? 'Yes' : 'No';
+            const price = domainInfo.available ? domainInfo.price : 'N/A';
+            
+            // Get provider prices
+            let godaddyPrice = 'N/A';
+            let porkbunPrice = 'N/A';
+            let dynadotPrice = 'N/A';
+            let namesiloPrice = 'N/A';
+            
+            if (domainInfo.available && domainInfo.providers) {
+                const providers = domainInfo.providers;
+                
+                // Format the price properly
+                const formatPrice = (price) => {
+                    if (price === undefined || price === null) return 'N/A';
+                    if (typeof price === 'string' && price.includes('$')) return price;
+                    
+                    // Ensure we're working with a number
+                    let numPrice = price;
+                    if (typeof price === 'string' && !isNaN(parseFloat(price))) {
+                        numPrice = parseFloat(price);
+                    }
+                    
+                    // Format to 2 decimal places
+                    if (typeof numPrice === 'number') {
+                        return `$${(numPrice/1000000).toFixed(2)}`;
+                    } else {
+                        return 'N/A';
+                    }
+                };
+                
+                godaddyPrice = formatPrice(providers.godaddy);
+                porkbunPrice = formatPrice(providers.porkbun);
+                dynadotPrice = formatPrice(providers.dynadot);
+                namesiloPrice = formatPrice(providers.namesilo);
+            }
+            
+            // Get score information
+            const totalScore = domainInfo.score?.total_score || 0;
+            const lengthScore = domainInfo.score?.details?.length?.score || 0;
+            const dictionaryScore = domainInfo.score?.details?.dictionary?.score || 0;
+            const pronounceabilityScore = domainInfo.score?.details?.pronounceability?.score || 0;
+            const repetitionScore = domainInfo.score?.details?.repetition?.score || 0;
+            const tldScore = domainInfo.score?.details?.tld?.score || 0;
+            
+            // Generate provider URLs
+            const godaddyUrl = getDomainProviderUrl('godaddy', domain);
+            const porkbunUrl = getDomainProviderUrl('porkbun', domain);
+            const dynadotUrl = getDomainProviderUrl('dynadot', domain);
+            const namesiloUrl = getDomainProviderUrl('namesilo', domain);
+            
+            // Add CSV row, make sure to handle commas in fields
+            csvContent += `"${name}","${ext}","${available}","${price}","${godaddyPrice}","${porkbunPrice}","${dynadotPrice}","${namesiloPrice}","${totalScore}","${lengthScore}","${dictionaryScore}","${pronounceabilityScore}","${repetitionScore}","${tldScore}","${godaddyUrl}","${porkbunUrl}","${dynadotUrl}","${namesiloUrl}"\n`;
+        });
+    });
+
+    // Create a download link
+    const encodedUri = 'data:text/csv;charset=utf-8,' + encodeURIComponent(csvContent);
+    const link = document.createElement('a');
+    link.setAttribute('href', encodedUri);
+    
+    // Generate filename with current date/time
+    const now = new Date();
+    const timestamp = `${now.getFullYear()}-${(now.getMonth()+1).toString().padStart(2, '0')}-${now.getDate().toString().padStart(2, '0')}_${now.getHours().toString().padStart(2, '0')}-${now.getMinutes().toString().padStart(2, '0')}`;
+    const keywords = document.getElementById('keywordInput').value.replace(/[^a-zA-Z0-9]/g, '_').substring(0, 20);
+    
+    link.setAttribute('download', `domain_results_${keywords}_${timestamp}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    
+    showToast('CSV file downloaded successfully', 'success');
+}
+
+// Function to export favorites to CSV
+function exportFavoritesToCSV() {
+    // Find all favorite cards
+    const favoriteCards = document.querySelectorAll('.favorite-card');
+    if (!favoriteCards.length) {
+        showToast('No favorites to export', 'warning');
+        return;
+    }
+    
+    // CSV Header
+    let csvContent = 'Domain Name,Extension,Price,Total Score,Length Score,Dictionary Score,Pronounceability Score,Repetition Score,TLD Score,GoDaddy URL\n';
+    
+    // Extract data from each favorite card
+    favoriteCards.forEach(card => {
+        // Extract data from card
+        const domain = card.querySelector('.domain-name').textContent.trim();
+        const [name, ext] = domain.split('.');
+        const price = card.querySelector('.price-tag') ? card.querySelector('.price-tag').textContent.trim() : 'N/A';
+        
+        // Extract scores
+        const totalScore = card.querySelector('.total-score') ? card.querySelector('.total-score').textContent.trim() : '0';
+        const scoreBars = card.querySelectorAll('.score-bar');
+        
+        let lengthScore = '0';
+        let dictionaryScore = '0';
+        let pronounceabilityScore = '0';
+        let repetitionScore = '0';
+        let tldScore = '0';
+        
+        scoreBars.forEach(scoreBar => {
+            const label = scoreBar.previousElementSibling.textContent.trim().toLowerCase();
+            const score = scoreBar.getAttribute('data-score') || '0';
+            
+            if (label.includes('length')) lengthScore = score;
+            else if (label.includes('dictionary')) dictionaryScore = score;
+            else if (label.includes('pronounce')) pronounceabilityScore = score;
+            else if (label.includes('repetition')) repetitionScore = score;
+            else if (label.includes('tld')) tldScore = score;
+        });
+        
+        // Generate GoDaddy URL
+        const godaddyUrl = getDomainProviderUrl('godaddy', domain);
+        
+        // Add CSV row
+        csvContent += `"${name}","${ext}","${price}","${totalScore}","${lengthScore}","${dictionaryScore}","${pronounceabilityScore}","${repetitionScore}","${tldScore}","${godaddyUrl}"\n`;
+    });
+    
+    // Create a download link
+    const encodedUri = 'data:text/csv;charset=utf-8,' + encodeURIComponent(csvContent);
+    const link = document.createElement('a');
+    link.setAttribute('href', encodedUri);
+    
+    // Generate filename with current date/time
+    const now = new Date();
+    const timestamp = `${now.getFullYear()}-${(now.getMonth()+1).toString().padStart(2, '0')}-${now.getDate().toString().padStart(2, '0')}_${now.getHours().toString().padStart(2, '0')}-${now.getMinutes().toString().padStart(2, '0')}`;
+    
+    link.setAttribute('download', `favorite_domains_${timestamp}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    
+    showToast('Favorites CSV file downloaded successfully', 'success');
+}
+
+// Add event listener for favorites download button
+document.addEventListener('DOMContentLoaded', function() {
+    // ... existing initialization code ...
+    
+    // Add event listener for the favorites download CSV button
+    const downloadFavoritesCsvBtn = document.getElementById('downloadFavoritesCsvBtn');
+    if (downloadFavoritesCsvBtn) {
+        downloadFavoritesCsvBtn.addEventListener('click', exportFavoritesToCSV);
+    }
+    
+    // ... existing code ...
+});
