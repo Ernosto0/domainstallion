@@ -20,9 +20,8 @@ from .services.stats_service import StatsService
 app = FastAPI()
 
 # Mount static files
-static_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'static')
+app.mount("/static", StaticFiles(directory="backend/static"), name="static")
 
-app.mount("/static", StaticFiles(directory=static_dir), name="static")
 
 # Environment settings
 ENV = os.getenv("ENVIRONMENT", "development")
