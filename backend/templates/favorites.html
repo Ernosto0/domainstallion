@@ -6,9 +6,8 @@
     <title>My Favorites - Brand Generator</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.8.1/font/bootstrap-icons.css" rel="stylesheet">
-    <link href="https://domain-creator-production.up.railway.app/static/css/modern-style.css" rel="stylesheet">
-    <link href="https://domain-creator-production.up.railway.app/static/css/favorites-style.css" rel="stylesheet">
-
+    <link href="{{ url_for('static', path='css/modern-style.css') }}" rel="stylesheet">
+    <link href="{{ url_for('static', path='css/favorites-style.css') }}" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
     <script>
         // Define placeholder functions that will be replaced when the JS loads
@@ -100,6 +99,9 @@
                                         <button class="btn btn-sm btn-outline-secondary" data-sort="score">Sort by Score</button>
                                         <button class="btn btn-sm btn-outline-secondary" data-sort="date">Sort by Date</button>
                                     </div>
+                                    <button id="downloadFavoritesCsvBtn" class="btn btn-outline-success btn-sm">
+                                        <i class="bi bi-download"></i> Download CSV
+                                    </button>
                                 </div>
                                 <div class="favorites-list row">
                                     {% for favorite in favorites %}
@@ -376,7 +378,6 @@
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
-    <script src="https://domain-creator-production.up.railway.app/static/js/main.js"></script>
-
+    <script src="{{ url_for('static', path='/js/main.js') }}"></script>
 </body>
 </html>
