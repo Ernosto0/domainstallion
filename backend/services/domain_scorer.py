@@ -1,19 +1,146 @@
 import re
-import nltk  # type: ignore
-from nltk.corpus import words  # type: ignore
 import os
 import logging
-from typing import Dict, Any
+import json
+from typing import Dict, Any, Set
+from pathlib import Path
 
 logger = logging.getLogger(__name__)
 
-# Download required NLTK data
-try:
-    nltk.data.find("corpora/words")
-except LookupError:
-    nltk.download("words")
+# Create a simple English word list without NLTK dependency
+class WordList:
+    def __init__(self):
+        self.words = set()
+        self._load_words()
+    
+    def _load_words(self):
+        # Define a minimal set of common words as fallback
+        minimal_words = {"domain", "app", "tech", "web", "site", "shop", "data", "cloud", "mobile", "code"}
+        
+        # Define common words
+        common_words = {
+            "the", "be", "to", "of", "and", "a", "in", "that", "have", "i", 
+            "it", "for", "not", "on", "with", "he", "as", "you", "do", "at", 
+            "this", "but", "his", "by", "from", "they", "we", "say", "her", "she", 
+            "or", "an", "will", "my", "one", "all", "would", "there", "their", "what", 
+            "so", "up", "out", "if", "about", "who", "get", "which", "go", "me",
+            "when", "make", "can", "like", "time", "no", "just", "him", "know", "take", 
+            "people", "into", "year", "your", "good", "some", "could", "them", "see", "other", 
+            "than", "then", "now", "look", "only", "come", "its", "over", "think", "also", 
+            "back", "after", "use", "two", "how", "our", "work", "first", "well", "way", 
+            "even", "new", "want", "because", "any", "these", "give", "day", "most", "us",
+            "app", "web", "site", "tech", "cloud", "data", "shop", "store", "online", "digital",
+            "blog", "health", "food", "smart", "easy", "fast", "simple", "quick", "best", "top",
+            "design", "market", "social", "media", "mobile", "code", "game", "play", "learn", "help"
+        }
+        
+        # Add domain-relevant words
+        domain_words = {
+            "domain", "brand", "business", "company", "enterprise", "service", "product", "solution",
+            "platform", "network", "system", "software", "hardware", "info", "group", "team",
+            "agency", "studio", "labs", "hub", "space", "zone", "world", "global", "local",
+            "pro", "expert", "guru", "master", "ninja", "wizard", "genius", "connect", "link",
+            # Tech terms
+            "tech", "technology", "digital", "cyber", "net", "web", "app", "robot", "bot", "ai",
+            "cloud", "data", "analytics", "crypto", "secure", "safe", "privacy", "private", "public",
+            "mobile", "virtual", "reality", "augmented", "wireless", "iot", "internet", "things", 
+            "automation", "auto", "smart", "intelligence", "machine", "learning", "deep", "neural",
+            "blockchain", "token", "nft", "meta", "metaverse", "quantum", "nano", "micro", "macro",
+            "code", "coding", "program", "programming", "dev", "develop", "developer", "stack", 
+            "frontend", "backend", "fullstack", "ui", "ux", "design", "designer", "creative",
+            # Business terms
+            "market", "finance", "fintech", "invest", "investor", "money", "bank", "banking", "pay",
+            "shop", "store", "commerce", "buy", "sell", "trade", "trading", "exchange", "auction",
+            "retail", "wholesale", "consumer", "customer", "client", "user", "account", "premium",
+            "plan", "subscription", "monthly", "annual", "yearly", "daily", "weekly", "free", "pro",
+            "startup", "scale", "growth", "venture", "capital", "fund", "funding", "angel", "seed",
+            "series", "ipo", "exit", "merger", "acquisition", "partner", "alliance", "collaborate",
+            # Industry terms
+            "health", "medical", "medicine", "pharma", "doctor", "patient", "care", "wellness",
+            "fitness", "exercise", "workout", "gym", "yoga", "mindful", "mental", "physical",
+            "food", "eat", "nutrition", "diet", "recipe", "cook", "cooking", "kitchen", "meal",
+            "travel", "trip", "vacation", "hotel", "flight", "booking", "reservation", "tour",
+            "education", "learn", "course", "class", "school", "college", "university", "academy",
+            "legal", "law", "lawyer", "attorney", "counsel", "advice", "consult", "consultant",
+            "real", "estate", "property", "home", "house", "apartment", "rent", "buy", "sell",
+            # Social terms
+            "social", "media", "network", "community", "group", "forum", "chat", "message", "email",
+            "friend", "follow", "follower", "share", "like", "comment", "post", "video", "photo",
+            "image", "picture", "stream", "live", "streaming", "broadcast", "channel", "content",
+            # Common brand elements
+            "go", "get", "try", "use", "make", "build", "create", "find", "discover", "explore",
+            "fast", "quick", "rapid", "swift", "instant", "now", "today", "tomorrow", "future",
+            "easy", "simple", "lite", "light", "basic", "advanced", "pro", "plus", "premium",
+            "fresh", "new", "novel", "innovative", "disruptive", "revolutionary", "evolve",
+            "bright", "clear", "vivid", "bold", "strong", "power", "powerful", "super", "ultra",
+            "cool", "awesome", "amazing", "incredible", "fantastic", "great", "good", "best",
+            "first", "primary", "main", "central", "core", "essential", "vital", "key", "prime",
+            "alpha", "beta", "delta", "sigma", "omega", "zen", "eco", "green", "blue", "red"
+        }
+        
+        # Path to the word list file
+        word_file_path = Path(__file__).parent / "english_words.json"
+        
+        # Try to load from file first
+        try:
+            if word_file_path.exists():
+                with open(word_file_path, 'r') as f:
+                    self.words = set(json.load(f))
+                logger.info(f"Loaded {len(self.words)} words from local file")
+                return
+        except Exception as e:
+            logger.error(f"Error loading word list from file: {str(e)}")
+        
+        # If we get here, either the file doesn't exist or there was an error
+        # Use the common words and domain words
+        self.words = common_words.union(domain_words)
+        logger.info(f"Using basic word set with {len(self.words)} words")
+        
+        # Try to save the word list for future use
+        try:
+            with open(word_file_path, 'w') as f:
+                json.dump(list(self.words), f)
+            logger.info(f"Saved basic word list to {word_file_path}")
+        except Exception as e:
+            logger.warning(f"Could not save word list: {str(e)}")
+            # If all else fails, use minimal word set
+            if not self.words:
+                self.words = minimal_words
+                logger.warning("Falling back to minimal word set")
+    
+    def contains(self, word: str) -> bool:
+        """Check if the word exists in our word list."""
+        return word.lower() in self.words
+    
+    def find_words_in_text(self, text: str) -> list:
+        """Find all words in a given text that exist in our word list."""
+        text = text.lower()
+        found_words = []
+        
+        # First check if the entire text is a word
+        if self.contains(text):
+            found_words.append(text)
+            return found_words
+        
+        # Check for hyphenated words
+        if "-" in text:
+            parts = text.split("-")
+            for part in parts:
+                if self.contains(part):
+                    found_words.append(part)
+            if found_words:
+                return found_words
+        
+        # Try to find subwords with a minimum length of 3
+        min_word_length = 3
+        for word in self.words:
+            if len(word) >= min_word_length and word in text:
+                found_words.append(word)
+        
+        return found_words
 
-english_words = set(words.words())
+# Initialize the word list
+english_words = WordList()
 
 
 class DomainScorerError(Exception):
@@ -103,18 +230,29 @@ class DomainScorer:
                     error_code="EMPTY_DOMAIN_NAME",
                 )
 
+            # First, try the basic hyphen-separated approach (for backward compatibility)
             words_in_name = name.lower().split("-")
-            real_words = [word for word in words_in_name if word in english_words]
-
+            real_words = [word for word in words_in_name if english_words.contains(word)]
+            
+            # If no words found, use the more advanced method
+            if not real_words:
+                real_words = english_words.find_words_in_text(name.lower())
+            
             if len(real_words) > 0:
-                percentage = len(real_words) / len(words_in_name)
-                if percentage == 1:
-                    return {"score": 100, "description": "All real words"}
-                elif percentage >= 0.5:
-                    return {"score": 80, "description": "Contains real words"}
+                # Calculate how much of the domain name is covered by real words
+                total_chars = len(name)
+                covered_chars = sum(len(word) for word in real_words)
+                coverage_ratio = min(1.0, covered_chars / total_chars)  # Cap at 100%
+                
+                if coverage_ratio >= 0.9:
+                    return {"score": 100, "description": "Contains meaningful words"}
+                elif coverage_ratio >= 0.6:
+                    return {"score": 80, "description": "Contains recognizable words"}
+                elif coverage_ratio >= 0.3:
+                    return {"score": 60, "description": "Contains some word elements"}
                 else:
-                    return {"score": 60, "description": "Has some real words"}
-            return {"score": 40, "description": "No real words"}
+                    return {"score": 40, "description": "Few word elements"}
+            return {"score": 40, "description": "No recognizable words"}
         except DomainScorerError:
             raise
         except Exception as e:
