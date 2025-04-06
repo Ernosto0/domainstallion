@@ -1,4 +1,3 @@
-from openai import OpenAI
 import openai
 import whois
 import requests
@@ -27,7 +26,7 @@ logger.addHandler(handler)
 
 load_dotenv()
 
-# Initialize OpenAI client
+# Initialize OpenAI API key
 api_key = os.getenv("OPENAI_API_KEY")
 
 # Common domain extensions to check
@@ -48,7 +47,7 @@ CHUNK_SIZE = 20
 if not api_key:
     raise ValueError("OPENAI_API_KEY not found in environment variables")
 
-# Create the client with minimal configuration
+# Set the API key for openai
 openai.api_key = api_key
 
 
@@ -100,8 +99,7 @@ class NameGenerationError(BrandGeneratorError):
 
 class BrandGenerator:
     def __init__(self):
-        self.client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
-        if not self.client.api_key:
+        if not openai.api_key:
             raise APIKeyError("OpenAI")
 
         self.domain_scorer = DomainScorer()
@@ -363,8 +361,9 @@ class BrandGenerator:
                 logger.debug(
                     f"Using parameters - min_length: {min_length}, max_length: {max_length}, include_word: {include_word}, similar_to: {similar_to}"
                 )
-                response = self.client.chat.completions.create(
-                    model="gpt-3.5-turbo",  # Using GPT-4o for more creative results
+                # Using older OpenAI API style (0.27.2)
+                response = openai.ChatCompletion.create(
+                    model="gpt-3.5-turbo",
                     messages=[{"role": "user", "content": prompt}],
                     temperature=0.9,
                     max_tokens=300,
@@ -372,12 +371,12 @@ class BrandGenerator:
                     frequency_penalty=0.8
                 )
                 logger.debug(
-                    f"OpenAI API response received: {response.choices[0].message.content}"
+                    f"OpenAI API response received: {response.choices[0].message['content']}"
                 )
 
                 # Clean up brand names
                 brand_names = []
-                raw_lines = response.choices[0].message.content.strip().split("\n")
+                raw_lines = response.choices[0].message['content'].strip().split("\n")
                 logger.debug(f"Processing {len(raw_lines)} raw lines")
 
                 for line in raw_lines:
