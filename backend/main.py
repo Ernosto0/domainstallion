@@ -750,3 +750,12 @@ async def check_more_extensions_endpoint(
             detail=f"Error checking more extensions: {str(e)}"
         )
 
+
+# HTTPS Redirect middleware for production
+@app.middleware("http")
+async def https_redirect_middleware(request: Request, call_next):
+    if IS_PRODUCTION and request.url.scheme == "http":
+        url = request.url.copy_with(scheme="https")
+        return RedirectResponse(str(url), status_code=301)
+    return await call_next(request)
+
