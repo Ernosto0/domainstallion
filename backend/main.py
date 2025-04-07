@@ -123,6 +123,14 @@ app.mount("/static", StaticFiles(directory="backend/static"), name="static")
 # Configure templates
 templates = Jinja2Templates(directory="backend/templates")
 
+# Create a custom Jinja2 filter function
+def https_url_filter(url):
+    if IS_PRODUCTION and isinstance(url, str) and url.startswith("http:"):
+        return url.replace("http:", "https:", 1)
+    return url
+
+# Get the Jinja2 environment from templates and add our filter
+templates.env.filters["https_url"] = https_url_filter
 
 # Add debug middleware in development mode only
 if not IS_PRODUCTION:
@@ -148,9 +156,14 @@ if not IS_PRODUCTION:
         print(f"Response status: {response.status_code}")
         return response
 else:
-    # Simpler middleware for production that just handles redirects
+    # Enhanced middleware for production that handles redirects and forces HTTPS
     @app.middleware("http")
     async def production_middleware(request: Request, call_next):
+        # Force HTTPS for all requests in production
+        if IS_PRODUCTION and request.url.scheme == "http":
+            url = request.url.replace(scheme="https")
+            return RedirectResponse(url=str(url), status_code=301)
+            
         # Only redirect if it's a browser request to /favorites without auth
         if (request.url.path == "/favorites" and 
             request.method == "GET" and 
