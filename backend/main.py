@@ -4,6 +4,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from fastapi.security import OAuth2PasswordRequestForm
 from fastapi.middleware.cors import CORSMiddleware
+from starlette.middleware.base import BaseHTTPMiddleware
 from pydantic import BaseModel, Field
 from typing import List, Optional, Dict, Any
 from datetime import timedelta
@@ -33,6 +34,17 @@ logging.basicConfig(
     level=logging_level,
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
 )
+
+# Middleware to ensure HTTPS for static files in production
+class HTTPSRedirectMiddleware(BaseHTTPMiddleware):
+    async def dispatch(self, request: Request, call_next):
+        if IS_PRODUCTION and request.url.scheme == "http":
+            url = request.url.replace(scheme="https")
+            return RedirectResponse(url=str(url), status_code=301)
+        return await call_next(request)
+
+# Add the HTTPS redirect middleware
+app.add_middleware(HTTPSRedirectMiddleware)
 
 # Configure rate limits based on environment
 # Higher limits in production to handle legitimate traffic
@@ -749,13 +761,4 @@ async def check_more_extensions_endpoint(
             status_code=500, 
             detail=f"Error checking more extensions: {str(e)}"
         )
-
-
-# HTTPS Redirect middleware for production
-@app.middleware("http")
-async def https_redirect_middleware(request: Request, call_next):
-    if IS_PRODUCTION and request.url.scheme == "http":
-        url = request.url.copy_with(scheme="https")
-        return RedirectResponse(str(url), status_code=301)
-    return await call_next(request)
 
