@@ -4,7 +4,6 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from fastapi.security import OAuth2PasswordRequestForm
 from fastapi.middleware.cors import CORSMiddleware
-from starlette.middleware.base import BaseHTTPMiddleware
 from pydantic import BaseModel, Field
 from typing import List, Optional, Dict, Any
 from datetime import timedelta
@@ -34,17 +33,6 @@ logging.basicConfig(
     level=logging_level,
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
 )
-
-# Middleware to ensure HTTPS for static files in production
-class HTTPSRedirectMiddleware(BaseHTTPMiddleware):
-    async def dispatch(self, request: Request, call_next):
-        if IS_PRODUCTION and request.url.scheme == "http":
-            url = request.url.replace(scheme="https")
-            return RedirectResponse(url=str(url), status_code=301)
-        return await call_next(request)
-
-# Add the HTTPS redirect middleware
-app.add_middleware(HTTPSRedirectMiddleware)
 
 # Configure rate limits based on environment
 # Higher limits in production to handle legitimate traffic
@@ -123,10 +111,8 @@ app.mount("/static", StaticFiles(directory="backend/static"), name="static")
 # Configure templates
 templates = Jinja2Templates(directory="backend/templates")
 
-# Create a custom Jinja2 filter function
+# Create a custom Jinja2 filter function that doesn't force HTTPS
 def https_url_filter(url):
-    if IS_PRODUCTION and isinstance(url, str) and url.startswith("http:"):
-        return url.replace("http:", "https:", 1)
     return url
 
 # Get the Jinja2 environment from templates and add our filter
@@ -156,14 +142,9 @@ if not IS_PRODUCTION:
         print(f"Response status: {response.status_code}")
         return response
 else:
-    # Enhanced middleware for production that handles redirects and forces HTTPS
+    # Simpler middleware for production that just handles redirects
     @app.middleware("http")
     async def production_middleware(request: Request, call_next):
-        # Force HTTPS for all requests in production
-        if IS_PRODUCTION and request.url.scheme == "http":
-            url = request.url.replace(scheme="https")
-            return RedirectResponse(url=str(url), status_code=301)
-            
         # Only redirect if it's a browser request to /favorites without auth
         if (request.url.path == "/favorites" and 
             request.method == "GET" and 
