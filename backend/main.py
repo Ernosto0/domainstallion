@@ -4,6 +4,8 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from fastapi.security import OAuth2PasswordRequestForm
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.middleware.httpsredirect import HTTPSRedirectMiddleware
+
 from pydantic import BaseModel, Field
 from typing import List, Optional, Dict, Any
 from datetime import timedelta
@@ -95,15 +97,8 @@ app = FastAPI(title="Brand Name Generator", version="1.0.0")
 # Add rate limiter to the application
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+app.add_middleware(HTTPSRedirectMiddleware)
 
-# Configure CORS
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"] if not IS_PRODUCTION else ["https://yourdomain.com"], # TODO: change to your domain
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
 
 # Mount static files
 app.mount("/static", StaticFiles(directory="backend/static"), name="static")
