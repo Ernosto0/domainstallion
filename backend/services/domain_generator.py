@@ -52,7 +52,7 @@ openai.api_key = api_key
 
 
 # Custom exceptions
-class BrandGeneratorError(Exception):
+class DomainGeneratorError(Exception):
     def __init__(
         self,
         message: str,
@@ -67,7 +67,7 @@ class BrandGeneratorError(Exception):
         super().__init__(self.message)
 
 
-class APIKeyError(BrandGeneratorError):
+class APIKeyError(DomainGeneratorError):
     def __init__(self, service: str):
         super().__init__(
             message=f"{service} API key not found",
@@ -77,7 +77,7 @@ class APIKeyError(BrandGeneratorError):
         )
 
 
-class DomainCheckError(BrandGeneratorError):
+class DomainCheckError(DomainGeneratorError):
     def __init__(self, domain: str, original_error: str):
         super().__init__(
             message=f"Failed to check domain {domain}",
@@ -87,7 +87,7 @@ class DomainCheckError(BrandGeneratorError):
         )
 
 
-class NameGenerationError(BrandGeneratorError):
+class NameGenerationError(DomainGeneratorError):
     def __init__(self, keywords: str, original_error: str):
         super().__init__(
             message=f"Failed to generate names for keywords: {keywords}",
@@ -97,7 +97,7 @@ class NameGenerationError(BrandGeneratorError):
         )
 
 
-class BrandGenerator:
+class DomainGenerator:
     def __init__(self):
         if not openai.api_key:
             raise APIKeyError("OpenAI")
@@ -232,14 +232,14 @@ class BrandGenerator:
         try:
             # Validate inputs
             if not keywords:
-                raise BrandGeneratorError(
+                raise DomainGeneratorError(
                     message="Keywords cannot be empty",
                     error_code="INVALID_KEYWORDS",
                     status_code=status.HTTP_400_BAD_REQUEST,
                 )
 
             if style not in ["short", "playful", "serious", "techy", "neutral", "creative"]:
-                raise BrandGeneratorError(
+                raise DomainGeneratorError(
                     message="Invalid style specified",
                     error_code="INVALID_STYLE",
                     status_code=status.HTTP_400_BAD_REQUEST,
@@ -256,7 +256,7 @@ class BrandGenerator:
                 )
 
             if min_length > max_length:
-                raise BrandGeneratorError(
+                raise DomainGeneratorError(
                     message="Minimum length cannot be greater than maximum length",
                     error_code="INVALID_LENGTH_RANGE",
                     status_code=status.HTTP_400_BAD_REQUEST,
@@ -674,7 +674,7 @@ class BrandGenerator:
                 logger.error(f"Error in generate_names: {str(e)}", exc_info=True)
                 raise
 
-        except BrandGeneratorError:
+        except DomainGeneratorError:
             raise
         except Exception as e:
             raise NameGenerationError(keywords, str(e))
