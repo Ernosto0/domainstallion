@@ -7,7 +7,7 @@ from pathlib import Path
 
 logger = logging.getLogger(__name__)
 
-# Create a simple English word list without NLTK dependency
+# Create a simple English word list 
 class WordList:
     def __init__(self):
         self.words = set()

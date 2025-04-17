@@ -4,6 +4,7 @@ import logging
 import aiohttp
 from typing import Tuple, Dict, Optional
 from dotenv import load_dotenv
+import ssl
 
 # Load environment variables
 load_dotenv()
@@ -35,8 +36,13 @@ async def check_domain_availability(domain_name: str, extension: str) -> Tuple[b
             logger.error("GoDaddy API credentials not configured")
             return False, None
         
+        # Create SSL context to handle verification issues
+        ssl_context = ssl.create_default_context()
+        ssl_context.check_hostname = False
+        ssl_context.verify_mode = ssl.CERT_NONE
+        
         # Create aiohttp session
-        async with aiohttp.ClientSession() as session:
+        async with aiohttp.ClientSession(connector=aiohttp.TCPConnector(ssl=ssl_context)) as session:
             # Set up headers for GoDaddy API
             headers = {
                 "Authorization": f"sso-key {GODADDY_API_KEY}:{GODADDY_API_SECRET}",

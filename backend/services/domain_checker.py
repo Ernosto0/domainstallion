@@ -4,6 +4,7 @@ import os
 import json
 import time
 import asyncio
+import ssl
 from typing import Tuple, Dict, Optional, List
 from .email_service import send_domain_availability_email
 from .porkbun_service import get_porkbun_pricing
@@ -24,9 +25,14 @@ GODADDY_API_SECRET = os.getenv("GODADDY_API_SECRET")
 # For multiple domains: POST request with array of domains in the body
 GODADDY_API_URL = "https://api.ote-godaddy.com/v1/domains/available"
 
+# Create SSL context to handle verification issues
+ssl_context = ssl.create_default_context()
+ssl_context.check_hostname = False
+ssl_context.verify_mode = ssl.CERT_NONE
+
 # Connection pooling configuration
 # This connector will be reused across requests to improve performance
-TCP_CONNECTOR = aiohttp.TCPConnector(limit=30, ssl=False, keepalive_timeout=30)
+TCP_CONNECTOR = aiohttp.TCPConnector(limit=30, ssl=ssl_context, keepalive_timeout=30)
 
 # Global session that will be initialized once and reused
 _SESSION = None
