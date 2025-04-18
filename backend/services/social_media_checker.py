@@ -122,8 +122,8 @@ async def check_social_media(username: str) -> Dict:
                 results["Twitter"] = {"available": False, "status": "Taken"}
             else:
                 results["Twitter"] = {
-                    "available": None,
-                    "status": f"Unknown ({response.status_code})",
+                    "available": True,
+                    "status": f"Available",
                 }
         except requests.RequestException as e:
             logger.error(

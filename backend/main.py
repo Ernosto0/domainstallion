@@ -77,7 +77,7 @@ from .auth import (
     get_password_hash,
 )
 from .google_auth import router as google_auth_router
-from backend.services.brand_generator import BrandGenerator
+from backend.services.domain_generator import DomainGenerator
 from backend.services.social_media_checker import check_social_media
 from backend.schemas import WatchlistItemCreate, WatchlistItem
 from .tasks import check_watchlist_domains
@@ -101,7 +101,7 @@ app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 # Configure CORS
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"] if not IS_PRODUCTION else ["https://yourdomain.com"], # TODO: change to your domain
+    allow_origins=["*"] if not IS_PRODUCTION else ["https://DomainStallion.com"], # TODO: change to your domain
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -442,7 +442,7 @@ async def generate_names(request: BrandRequest, db: Session = Depends(get_db)):
         logger.debug(f"Using custom extensions: {request.extensions}")
 
     try:
-        generator = BrandGenerator()
+        generator = DomainGenerator()
         logger.debug("BrandGenerator initialized")
 
         # Generate more names than requested to account for exclusions

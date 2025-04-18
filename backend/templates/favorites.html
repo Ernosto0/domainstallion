@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>My Favorites - Domain Generator</title>
+    <title>My Favorites - DomainStallion</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.8.1/font/bootstrap-icons.css" rel="stylesheet">
     <link rel="stylesheet" href="{{ url_for('static', path='css/modern-style.css') }}">
@@ -255,129 +255,6 @@
             </div>
         </div>
     </footer>
-
-    <!-- Login Modal -->
-    <div class="modal fade" id="loginModal" tabindex="-1">
-        <div class="modal-dialog modal-dialog-centered">
-            <div class="modal-content">
-                <div class="modal-header border-0 pb-0">
-                    <h4 class="modal-title fw-bold">Welcome Back</h4>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-                </div>
-                <div class="modal-body pt-2 px-4 pb-4">
-                    <p class="text-muted mb-4">Sign in to access your saved domains and watchlist</p>
-                    <form id="loginForm">
-                        <div class="mb-4">
-                            <label for="loginUsername" class="form-label">Username</label>
-                            <div class="input-group">
-                                <span class="input-group-text bg-light border-end-0">
-                                    <i class="bi bi-person text-muted"></i>
-                                </span>
-                                <input type="text" class="form-control border-start-0 ps-0" id="loginUsername" placeholder="Enter your username" required>
-                            </div>
-                        </div>
-                        <div class="mb-4">
-                            <div class="d-flex justify-content-between align-items-center mb-1">
-                                <label for="loginPassword" class="form-label mb-0">Password</label>
-                                <a href="#" class="text-decoration-none small">Forgot password?</a>
-                            </div>
-                            <div class="input-group">
-                                <span class="input-group-text bg-light border-end-0">
-                                    <i class="bi bi-lock text-muted"></i>
-                                </span>
-                                <input type="password" class="form-control border-start-0 ps-0" id="loginPassword" placeholder="Enter your password" required>
-                            </div>
-                        </div>
-                        <div class="alert alert-danger d-none rounded-3" id="loginError"></div>
-                        <div class="d-grid gap-2 mb-4">
-                            <button type="submit" class="btn btn-primary py-2 fw-semibold">Sign In</button>
-                        </div>
-                    </form>
-                    <div class="text-center">
-                        <div class="position-relative my-4">
-                            <hr>
-                            <span class="position-absolute top-50 start-50 translate-middle px-3 bg-white text-muted small">OR CONTINUE WITH</span>
-                        </div>
-                        <div class="d-grid gap-2 mb-4">
-                            <a href="/auth/google/login" class="btn btn-outline-secondary py-2">
-                                <img src="{{ url_for('static', path='css/images/google_logo.png') | https_url }}" alt="Google Logo" style="height: 18px; margin-right: 10px;">
-                                Google
-                            </a>
-                        </div>
-                        <p class="text-center mb-0">
-                            Don't have an account? <a href="#" class="text-decoration-none fw-semibold" data-bs-toggle="modal" data-bs-target="#registerModal" data-bs-dismiss="modal">Sign up</a>
-                        </p>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Register Modal -->
-    <div class="modal fade" id="registerModal" tabindex="-1">
-        <div class="modal-dialog modal-dialog-centered">
-            <div class="modal-content">
-                <div class="modal-header border-0 pb-0">
-                    <h4 class="modal-title fw-bold">Create Account</h4>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-                </div>
-                <div class="modal-body pt-2 px-4 pb-4">
-                    <p class="text-muted mb-4">Join to save your favorite domains and get alerts</p>
-                    <form id="registerForm">
-                        <div class="mb-4">
-                            <label for="registerUsername" class="form-label">Username</label>
-                            <div class="input-group">
-                                <span class="input-group-text bg-light border-end-0">
-                                    <i class="bi bi-person text-muted"></i>
-                                </span>
-                                <input type="text" class="form-control border-start-0 ps-0" id="registerUsername" placeholder="Choose a username" required>
-                            </div>
-                        </div>
-                        <div class="mb-4">
-                            <label for="registerEmail" class="form-label">Email</label>
-                            <div class="input-group">
-                                <span class="input-group-text bg-light border-end-0">
-                                    <i class="bi bi-envelope text-muted"></i>
-                                </span>
-                                <input type="email" class="form-control border-start-0 ps-0" id="registerEmail" placeholder="Enter your email" required>
-                            </div>
-                        </div>
-                        <div class="mb-4">
-                            <label for="registerPassword" class="form-label">Password</label>
-                            <div class="input-group">
-                                <span class="input-group-text bg-light border-end-0">
-                                    <i class="bi bi-lock text-muted"></i>
-                                </span>
-                                <input type="password" class="form-control border-start-0 ps-0" id="registerPassword" placeholder="Create a password" required>
-                            </div>
-                            <div class="form-text mt-2">
-                                <i class="bi bi-info-circle me-1"></i> Password must be at least 8 characters
-                            </div>
-                        </div>
-                        <div class="alert alert-danger d-none rounded-3" id="registerError"></div>
-                        <div class="d-grid gap-2 mb-4">
-                            <button type="submit" class="btn btn-primary py-2 fw-semibold">Create Account</button>
-                        </div>
-                    </form>
-                    <div class="text-center">
-                        <div class="position-relative my-4">
-                            <hr>
-                            <span class="position-absolute top-50 start-50 translate-middle px-3 bg-white text-muted small">OR SIGN UP WITH</span>
-                        </div>
-                        <div class="d-grid gap-2 mb-4">
-                            <a href="/auth/google/login" class="btn btn-outline-secondary py-2">
-                                <img src="{{ url_for('static', path='css/images/google_logo.png') | https_url }}" alt="Google Logo" style="height: 18px; margin-right: 10px;">
-                                Google
-                            </a>
-                        </div>
-                        <p class="text-center mb-0">
-                            Already have an account? <a href="#" class="text-decoration-none fw-semibold" data-bs-toggle="modal" data-bs-target="#loginModal" data-bs-dismiss="modal">Sign in</a>
-                        </p>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
     <script src="{{ url_for('static', path='js/main.js') | https_url }}"></script>

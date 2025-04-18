@@ -29,35 +29,39 @@ GOOGLE_REDIRECT_URI = os.getenv(
 
 print(f"Google OAuth Configuration:")
 print(f"Client ID: {GOOGLE_CLIENT_ID}")
+print(f"Client Secret: {GOOGLE_CLIENT_SECRET}")
 print(f"Redirect URI: {GOOGLE_REDIRECT_URI}")
 
-# Create client config
-client_config = {
-    "web": {
-        "client_id": GOOGLE_CLIENT_ID,
-        "client_secret": GOOGLE_CLIENT_SECRET,
-        "auth_uri": "https://accounts.google.com/o/oauth2/auth",
-        "token_uri": "https://oauth2.googleapis.com/token",
-        "redirect_uris": [GOOGLE_REDIRECT_URI],
-        "javascript_origins": ["http://localhost:8000"],
-    }
-}
 
-# Create the Flow object
-flow = Flow.from_client_config(
-    client_config=client_config,
-    scopes=[
-        "https://www.googleapis.com/auth/userinfo.profile",
-        "https://www.googleapis.com/auth/userinfo.email",
-        "openid",
-    ],
-)
-flow.redirect_uri = GOOGLE_REDIRECT_URI
+def create_flow():
+    client_config = {
+        "web": {
+            "client_id": GOOGLE_CLIENT_ID,
+            "client_secret": GOOGLE_CLIENT_SECRET,
+            "auth_uri": "https://accounts.google.com/o/oauth2/auth",
+            "token_uri": "https://oauth2.googleapis.com/token",
+            "redirect_uris": [GOOGLE_REDIRECT_URI],
+            "javascript_origins": ["http://localhost:8000"],
+        }
+    }
+
+    flow = Flow.from_client_config(
+        client_config=client_config,
+        scopes=[
+            "https://www.googleapis.com/auth/userinfo.profile",
+            "https://www.googleapis.com/auth/userinfo.email",
+            "openid",
+        ],
+    )
+    flow.redirect_uri = GOOGLE_REDIRECT_URI
+    return flow
+
 
 
 @router.get("/auth/google/login")
 async def google_login(request: Request):
     """Initiates the Google OAuth2 login flow"""
+    flow = create_flow()
     try:
         print("Starting Google login flow...")
         authorization_url, state = flow.authorization_url(
@@ -77,6 +81,7 @@ async def google_login(request: Request):
 @router.get("/auth/google/callback")
 async def google_callback(request: Request, db: Session = Depends(get_db)):
     """Handles the Google OAuth2 callback"""
+    flow = create_flow()
     try:
         print("Received callback request")
         print(f"Request URL: {request.url}")

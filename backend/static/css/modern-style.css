@@ -874,6 +874,11 @@ main {
     padding-right: 0.5rem;
 }
 
+.modal .input-group-text i {
+    color: var(--gray-600);
+    font-size: 1rem;
+}
+
 .modal .input-group .form-control {
     border-radius: 0 8px 8px 0;
     border-color: var(--gray-300);
@@ -881,9 +886,37 @@ main {
     height: 46px;
 }
 
-.modal .input-group:focus-within {
-    box-shadow: 0 0 0 3px var(--primary-light);
+/* Fix for login modal input groups */
+.modal .input-group {
+    height: 46px;
     border-radius: 8px;
+    overflow: hidden;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.03);
+}
+
+.modal .input-group-text {
+    background-color: var(--gray-100);
+    border: 1px solid var(--gray-300);
+    height: 46px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 46px;
+    padding: 0;
+}
+
+.modal .input-group .form-control {
+    height: 46px;
+    border: 1px solid var(--gray-300);
+    border-left: none;
+    padding: 0.75rem 1rem 0.75rem 0.5rem;
+    background-color: white;
+}
+
+/* Ensure input group focus styles work properly */
+.modal .input-group:focus-within {
+    outline: none;
+    box-shadow: 0 0 0 3px var(--primary-light);
 }
 
 .modal .input-group:focus-within .input-group-text,
