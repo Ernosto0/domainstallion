@@ -1790,3 +1790,108 @@ main {
     color: white;
 }
 
+/* About Page Styling */
+.about-page h1 {
+    margin-bottom: 1.5rem;
+    font-weight: 700;
+    color: var(--primary-color);
+    position: relative;
+    display: inline-block;
+}
+
+.about-page h1:after {
+    content: '';
+    position: absolute;
+    bottom: -10px;
+    left: 0;
+    width: 60px;
+    height: 4px;
+    background: var(--primary-color);
+    border-radius: 2px;
+}
+
+.about-page h2 {
+    color: var(--primary-color);
+    font-weight: 600;
+    margin-bottom: 1.5rem;
+    display: flex;
+    align-items: center;
+}
+
+.about-page h2 i {
+    margin-right: 0.5rem;
+}
+
+.about-page .lead {
+    font-size: 1.15rem;
+    color: var(--text-color);
+    margin-bottom: 2rem;
+    line-height: 1.6;
+}
+
+.about-page .card {
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+    height: 100%;
+    border: none;
+}
+
+.about-page .card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 10px 20px rgba(0, 0, 0, 0.1);
+}
+
+.about-page .card-title {
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+}
+
+.about-page .card-title i {
+    margin-right: 0.5rem;
+}
+
+.about-page .card-text {
+    color: var(--text-muted);
+    line-height: 1.6;
+}
+
+.about-page .btn-primary {
+    padding: 0.75rem 2rem;
+    font-weight: 600;
+    letter-spacing: 0.5px;
+    margin-top: 1rem;
+}
+
+/* Media queries for About Page */
+@media (max-width: 768px) {
+    .about-page h1 {
+        font-size: 2rem;
+    }
+    
+    .about-page h2 {
+        font-size: 1.5rem;
+    }
+    
+    .about-page .lead {
+        font-size: 1rem;
+    }
+    
+    .about-page .card-deck {
+        margin-bottom: 1rem;
+    }
+}
+
+@media (max-width: 576px) {
+    .about-page h1 {
+        font-size: 1.75rem;
+    }
+    
+    .about-page h2 {
+        font-size: 1.35rem;
+    }
+    
+    .about-page .card {
+        margin-bottom: 1rem;
+    }
+}
+

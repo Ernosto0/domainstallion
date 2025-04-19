@@ -1,0 +1,127 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container about-page">
+    <div class="row mb-5">
+        <div class="col-12">
+            <h1 class="mb-4">About DomainStallion</h1>
+            <p class="lead">
+                DomainStallion is an AI-powered tool designed to help entrepreneurs, marketers, and developers find the perfect domain name for their projects.
+            </p>
+        </div>
+    </div>
+
+    <div class="row mb-5">
+        <div class="col-12">
+            <h2><i class="fas fa-rocket me-2"></i>Key Features</h2>
+            <div class="card-deck">
+                <div class="row">
+                    <div class="col-md-6 mb-4">
+                        <div class="card h-100 shadow-sm">
+                            <div class="card-body">
+                                <h5 class="card-title"><i class="fas fa-robot text-primary me-2"></i>AI-Powered Name Generation</h5>
+                                <p class="card-text">Our system leverages OpenAI to generate contextually relevant and creative brand names based on your keywords.</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-6 mb-4">
+                        <div class="card h-100 shadow-sm">
+                            <div class="card-body">
+                                <h5 class="card-title"><i class="fas fa-globe text-primary me-2"></i>Multi-Provider Domain Checking</h5>
+                                <p class="card-text">Check domain availability across multiple registrars simultaneously to ensure you get accurate information.</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-6 mb-4">
+                        <div class="card h-100 shadow-sm">
+                            <div class="card-body">
+                                <h5 class="card-title"><i class="fas fa-chart-bar text-primary me-2"></i>Domain Quality Scoring</h5>
+                                <p class="card-text">Our system evaluates domains on multiple quality factors including length, pronunciation, dictionary words, and more.</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-6 mb-4">
+                        <div class="card h-100 shadow-sm">
+                            <div class="card-body">
+                                <h5 class="card-title"><i class="fas fa-share-alt text-primary me-2"></i>Social Media Username Verification</h5>
+                                <p class="card-text">Check username availability across popular social media platforms to ensure consistent branding.</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-6 mb-4">
+                        <div class="card h-100 shadow-sm">
+                            <div class="card-body">
+                                <h5 class="card-title"><i class="fas fa-heart text-primary me-2"></i>Favorites & Watchlist</h5>
+                                <p class="card-text">Save preferred domains and monitor unavailable ones with our favorites and watchlist system.</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-6 mb-4">
+                        <div class="card h-100 shadow-sm">
+                            <div class="card-body">
+                                <h5 class="card-title"><i class="fas fa-bell text-primary me-2"></i>Email Notifications</h5>
+                                <p class="card-text">Receive alerts when watched domains become available so you never miss an opportunity.</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row mb-5">
+        <div class="col-12">
+            <h2><i class="fas fa-laptop-code me-2"></i>Technology Stack</h2>
+            <div class="card shadow-sm">
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <h5><i class="fas fa-server text-primary me-2"></i>Backend</h5>
+                            <ul class="list-unstyled">
+                                <li><i class="fas fa-check text-success me-2"></i>Python with FastAPI</li>
+                                <li><i class="fas fa-check text-success me-2"></i>SQLite with SQLAlchemy ORM</li>
+                                <li><i class="fas fa-check text-success me-2"></i>JWT authentication</li>
+                                <li><i class="fas fa-check text-success me-2"></i>OAuth 2.0 integration</li>
+                            </ul>
+                        </div>
+                        <div class="col-md-6">
+                            <h5><i class="fas fa-paint-brush text-primary me-2"></i>Frontend</h5>
+                            <ul class="list-unstyled">
+                                <li><i class="fas fa-check text-success me-2"></i>HTML, CSS, JavaScript</li>
+                                <li><i class="fas fa-check text-success me-2"></i>Bootstrap framework</li>
+                                <li><i class="fas fa-check text-success me-2"></i>Font Awesome icons</li>
+                                <li><i class="fas fa-check text-success me-2"></i>Jinja2 templates</li>
+                            </ul>
+                        </div>
+                    </div>
+                    <div class="row mt-3">
+                        <div class="col-md-6">
+                            <h5><i class="fas fa-plug text-primary me-2"></i>API Integrations</h5>
+                            <ul class="list-unstyled">
+                                <li><i class="fas fa-check text-success me-2"></i>OpenAI for AI name generation</li>
+                                <li><i class="fas fa-check text-success me-2"></i>Domain registrar APIs</li>
+                                <li><i class="fas fa-check text-success me-2"></i>Social media platform APIs</li>
+                            </ul>
+                        </div>
+                        <div class="col-md-6">
+                            <h5><i class="fas fa-shield-alt text-primary me-2"></i>Security & Performance</h5>
+                            <ul class="list-unstyled">
+                                <li><i class="fas fa-check text-success me-2"></i>Password hashing</li>
+                                <li><i class="fas fa-check text-success me-2"></i>Rate limiting</li>
+                                <li><i class="fas fa-check text-success me-2"></i>Google OAuth</li>
+                                <li><i class="fas fa-check text-success me-2"></i>Asynchronous processing</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row mb-5">
+        <div class="col-12 text-center">
+            <a href="/" class="btn btn-primary btn-lg">Try DomainStallion Now</a>
+        </div>
+    </div>
+</div>
+{% endblock %}

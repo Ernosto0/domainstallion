@@ -676,6 +676,13 @@ async def terms_of_service(request: Request):
     )
 
 
+@app.get("/about", response_class=HTMLResponse)
+async def about_page(request: Request):
+    return templates.TemplateResponse(
+        "about.html", {"request": request, "title": "About Domain Creator"}
+    )
+
+
 # Example of applying rate limits to endpoints
 @app.post("/generate-domain")
 @rate_limit(calls=RATE_LIMIT_API["calls"], period=RATE_LIMIT_API["period"])  # API-intensive endpoint
