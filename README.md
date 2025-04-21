@@ -6,7 +6,7 @@
 
 # Domainstallion
 
-<em>A sophisticated name generation and availability platform with intelligent branding tools</em>
+<em>AI-powered platform to generate, score, and monitor domain names with real-time registrar and social media checking.</em>
 
 <div style="display: flex; justify-content: center; flex-wrap: wrap; gap: 8px; margin: 20px 0;">
 <img src="https://img.shields.io/badge/FastAPI-009688.svg?style=flat-square&logo=FastAPI&logoColor=white" alt="FastAPI">
