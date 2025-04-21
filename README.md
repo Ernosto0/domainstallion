@@ -6,7 +6,7 @@
 
 # Domainstallion
 
-<em>A sophisticated domain name generation and availability platform with intelligent branding tools</em>
+<em>A sophisticated name generation and availability platform with intelligent branding tools</em>
 
 <div style="display: flex; justify-content: center; flex-wrap: wrap; gap: 8px; margin: 20px 0;">
 <img src="https://img.shields.io/badge/FastAPI-009688.svg?style=flat-square&logo=FastAPI&logoColor=white" alt="FastAPI">
@@ -57,8 +57,8 @@ async def generate_names(self, keywords, style="neutral", num_suggestions=20):
     # with custom prompting based on selected style
 ```
 
-### 📊 Multi-Factor Domain Scoring
-Each domain is evaluated using a sophisticated scoring algorithm that analyzes:
+### 📊 Multi-Factor Scoring
+Each is evaluated using a sophisticated scoring algorithm that analyzes:
 - Length optimization
 - Dictionary word recognition
 - Pronunciation analysis
@@ -66,9 +66,9 @@ Each domain is evaluated using a sophisticated scoring algorithm that analyzes:
 - TLD value assessment
 
 ```python
-# Domain scoring system
+# scoring system
 def calculate_total_score(self, domain_name: str, tld: str) -> Dict[str, Any]:
-    # Calculate weighted scores for domain quality factors
+    # Calculate weighted scores for quality factors
     total_score = (
         length_score["score"] * 0.2
         + dictionary_score["score"] * 0.2
@@ -88,13 +88,13 @@ Evaluates the optimal length for memorability and usability:
 - 16+ characters: Too long (40%)
 
 #### 2. Dictionary Word Recognition (20%)
-Analyzes how the domain relates to common words:
+Analyzes how the relates to common words:
 - Exact dictionary word or creative blend: Highest score (100%)
 - Partial word match or recognizable pattern: Medium score (70%)
 - Random characters: Lowest score (30%)
 
 #### 3. Pronunciation Assessment (20%)
-Measures how easily the domain can be pronounced:
+Measures how easily the can be pronounced:
 - Clear vowel-consonant patterns: High score (90-100%)
 - Pronounceable but complex: Medium score (60-80%)
 - Difficult pronunciation: Low score (30-50%)
@@ -114,8 +114,8 @@ Assesses the value and perception of different TLDs:
 
 The visual representation of these scores provides users with a comprehensive understanding of each domain's strengths and weaknesses.
 
-### 🌐 Multi-Provider Domain Checking
-The system checks domain availability across multiple registrars simultaneously, comparing pricing and availability in real-time.
+### 🌐 Multi-Provider Checking
+The system checks availability across multiple registrars simultaneously, comparing pricing and availability in real-time.
 - GoDaddy.com
 - Dynadot.com
 - Namesilo.com
@@ -132,7 +132,7 @@ async def check_social_media(username: str) -> Dict:
 ```
 
 
-### 👁️ Domain Watchlist System
+### 👁️ Watchlist System
 Users can monitor unavailable domains with automatic e-mail notifications via Mailersend API when they become available.
 
 ```python
@@ -209,11 +209,11 @@ Key features of the styling system:
 - **Responsive Grid**: Custom grid system with breakpoints for all device sizes
 - **Interactive Elements**: Hover and focus states with smooth transitions
 - **Accessibility**: High-contrast UI elements with proper focus states
-- **Custom Components**: Specialized styling for domain cards, score indicators, and form elements
+- **Custom Components**: Specialized styling for cards, score indicators, and form elements
 
 ### 🖥️ Interactive Features
 
-- **Real-time Domain Checking**: Multi-provider domain availability checking with provider selection and price comparison
+- **Real-time Checking**: Multi-provider availability checking with provider selection and price comparison
 - **Social Media Username Verification**: Integrated UI for checking username availability across Twitter, YouTube, and Reddit
 - **Advanced Form Interface**: Implemented range sliders, toggles, and other custom form controls with real-time feedback
 - **Interactive Results Display**: Created expandable/collapsible sections with sorting and filtering capabilities
