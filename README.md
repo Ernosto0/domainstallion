@@ -134,7 +134,7 @@ async def check_social_media(username: str) -> Dict:
 
 
 ### 👁️ Domain Watchlist System
-Users can monitor unavailable domains with automatic notifications when they become available.
+Users can monitor unavailable domains with automatic e-mail notifications via Mailersend API when they become available.
 
 ```python
 # Background task to check watchlist domains
