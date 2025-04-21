@@ -177,7 +177,6 @@ async def check_social_media_endpoint(request: Request, username: str):
 - **Responsive Design**: Implemented a mobile-first approach with custom media queries and adaptive layouts
 - **Jinja2 Template Engine**: Leveraged Jinja2's powerful template inheritance, custom filters, and macros to create modular and maintainable frontend code
 - **Bootstrap Integration**: Enhanced UI with customized Bootstrap components while maintaining a unique visual identity
-- **Semantic HTML5**: Implemented accessible markup with proper ARIA attributes and semantic structure
 - **Cookie Management**: Created custom cookie consent and management system for GDPR compliance
 
 ### 🎨 CSS Styling System
