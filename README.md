@@ -8,6 +8,11 @@
 
 <em>AI-powered platform to generate, score, and monitor domain names with real-time registrar and social media checking.</em>
 
+Check the demo video!
+
+https://github.com/user-attachments/assets/5c0e1593-89a7-4b30-839a-7df7c5e4a46b
+
+
 <div style="display: flex; justify-content: center; flex-wrap: wrap; gap: 8px; margin: 20px 0;">
 <img src="https://img.shields.io/badge/FastAPI-009688.svg?style=flat-square&logo=FastAPI&logoColor=white" alt="FastAPI">
 <img src="https://img.shields.io/badge/Python-3776AB.svg?style=flat-square&logo=Python&logoColor=white" alt="Python">
