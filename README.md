@@ -10,7 +10,9 @@
 
 Check the demo video!
 
-https://github.com/user-attachments/assets/5c0e1593-89a7-4b30-839a-7df7c5e4a46b
+
+https://github.com/user-attachments/assets/1d72cc07-f20b-4097-a178-8c1000350b27
+
 
 
 <div style="display: flex; justify-content: center; flex-wrap: wrap; gap: 8px; margin: 20px 0;">
